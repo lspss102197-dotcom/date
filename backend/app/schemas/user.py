@@ -1,12 +1,12 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime
 from typing import Optional
 
-# 註冊時，前端必須傳進來的資料欄位
+# 註冊時，前端必須傳進來的資料欄位（加上安全長度限制）
 class UserCreate(BaseModel):
-    username: str
+    username: str = Field(..., min_length=3, max_length=20, description="使用者名稱")
     email: EmailStr
-    password: str
+    password: str = Field(..., min_length=8, max_length=50, description="密碼")
 
 # 登入時，前端必須傳進來的資料欄位
 class UserLogin(BaseModel):
