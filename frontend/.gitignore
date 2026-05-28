@@ -44,5 +44,10 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# docs
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Local reports
 ERROR.md
