@@ -2,22 +2,22 @@
 
 ## 專案設定
 
-- [ ] 建立 FastAPI 專案。
-- [ ] 建立虛擬環境。
-- [ ] 建立 requirements 管理方式。
-- [ ] 設定 `.env` 讀取。
-- [ ] 設定 PostgreSQL 連線。
+- [x] 建立 FastAPI 專案。
+- [x] 建立虛擬環境。
+- [x] 建立 requirements 管理方式。
+- [x]設定 `.env` 讀取。
+- [x] 設定 PostgreSQL 連線。
 - [ ] 設定 Alembic。
 - [ ] 建立統一錯誤格式。
 
 ## 帳號與授權
 
-- [ ] 建立 users model。
+- [x] 建立 users model。
 - [ ] 建立 users migration。
-- [ ] 實作密碼 hash。
-- [ ] 實作 `POST /auth/register`。
-- [ ] 實作 `POST /auth/login`。
-- [ ] 實作 JWT token。
+- [x] 實作密碼 hash。
+- [x] 實作 `POST /auth/register`。
+- [x] 實作 `POST /auth/login`。
+- [x] 實作 JWT token。
 - [ ] 實作 `GET /auth/me`。
 - [ ] 保護需要登入的 API。
 
@@ -59,7 +59,7 @@
 - [ ] 撰寫 Trips API 測試。
 - [ ] 撰寫距離計算測試。
 - [ ] 撰寫碳排計算測試。
-- [ ] 整理 OpenAPI 文件。
+- [x] 整理 OpenAPI 文件。
 - [ ] 查證碳排係數候選來源。
-- [ ] 查證 Google Maps Platform 成本與限制。
+- [x] 查證 Google Maps Platform 成本與限制。
 - [ ] 查證 TDX 與台北交通資料來源。
