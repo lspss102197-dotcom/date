@@ -19,7 +19,7 @@
 - [x] 實作 `POST /auth/login`。
 - [x] 實作 JWT token。
 - [ ] 實作 `GET /auth/me`。
-- [ ] 保護需要登入的 API。
+- [x] 保護需要登入的 API。
 
 ## 旅程資料
 
