@@ -11,8 +11,8 @@
 
 ## 帳號功能
 
-- [ ] 建立登入頁。
-- [ ] 建立註冊頁。
+- [x] 建立登入頁。
+- [x] 建立註冊頁。
 - [ ] 串接 `POST /auth/login`。
 - [ ] 串接 `POST /auth/register`。
 - [ ] 串接 `GET /auth/me`。

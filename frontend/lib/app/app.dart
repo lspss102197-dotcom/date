@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+import '../features/auth/login_screen.dart';
 import '../features/trips/current_location_provider.dart';
 
 class MyApp extends StatelessWidget {
@@ -13,9 +14,46 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Carbon Trip',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1A73E8)),
+        inputDecorationTheme: const InputDecorationTheme(
+          floatingLabelBehavior: FloatingLabelBehavior.auto,
+        ),
+        filledButtonTheme: FilledButtonThemeData(
+          style: FilledButton.styleFrom(
+            minimumSize: const Size(96, 40),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+          ),
+        ),
       ),
-      home: const MapHomePage(),
+      home: const AuthGate(),
+    );
+  }
+}
+
+class AuthGate extends StatefulWidget {
+  const AuthGate({super.key});
+
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  bool _isAuthenticated = false;
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isAuthenticated) {
+      return const MapHomePage();
+    }
+
+    return LoginScreen(
+      onAuthenticated: () {
+        setState(() {
+          _isAuthenticated = true;
+        });
+      },
     );
   }
 }
