@@ -1,52 +1,12 @@
-import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-void main() {
-  runApp(const MyApp());
-}
+import 'app/app.dart';
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: '.env', isOptional: true);
 
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Google Map Demo',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
-      ),
-      home: const MapHomePage(),
-    );
-  }
-}
-
-class MapHomePage extends StatelessWidget {
-  const MapHomePage({super.key});
-
-  static const LatLng _taipeiMainStation = LatLng(25.0478, 121.5170);
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      appBar: _MapAppBar(),
-      body: GoogleMap(
-        initialCameraPosition: CameraPosition(
-          target: _taipeiMainStation,
-          zoom: 14,
-        ),
-      ),
-    );
-  }
-}
-
-class _MapAppBar extends StatelessWidget implements PreferredSizeWidget {
-  const _MapAppBar();
-
-  @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
-
-  @override
-  Widget build(BuildContext context) {
-    return AppBar(title: const Text('Google Map'));
-  }
+  runApp(const ProviderScope(child: MyApp()));
 }
