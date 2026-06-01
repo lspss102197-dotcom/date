@@ -25,9 +25,37 @@ class CurrentLocationService {
   const CurrentLocationService();
 
   Future<void> ensurePermission() async {
+    final status = await requestAccess();
+    if (status == LocationAccessStatus.ready) {
+      return;
+    }
+
+    if (status == LocationAccessStatus.serviceDisabled) {
+      throw const LocationServiceDisabledException();
+    }
+
+    if (status == LocationAccessStatus.denied) {
+      throw const PermissionDeniedException('Location permission denied.');
+    }
+
+    throw const PermissionDeniedException(
+      'Location permission permanently denied.',
+    );
+  }
+
+  Future<LocationAccessStatus> checkAccessStatus() async {
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      throw const LocationServiceDisabledException();
+      return LocationAccessStatus.serviceDisabled;
+    }
+
+    return _statusForPermission(await Geolocator.checkPermission());
+  }
+
+  Future<LocationAccessStatus> requestAccess() async {
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      return LocationAccessStatus.serviceDisabled;
     }
 
     var permission = await Geolocator.checkPermission();
@@ -35,15 +63,15 @@ class CurrentLocationService {
       permission = await Geolocator.requestPermission();
     }
 
-    if (permission == LocationPermission.denied) {
-      throw const PermissionDeniedException('Location permission denied.');
-    }
+    return _statusForPermission(permission);
+  }
 
-    if (permission == LocationPermission.deniedForever) {
-      throw const PermissionDeniedException(
-        'Location permission permanently denied.',
-      );
-    }
+  Future<bool> openLocationSettings() {
+    return Geolocator.openLocationSettings();
+  }
+
+  Future<bool> openAppSettings() {
+    return Geolocator.openAppSettings();
   }
 
   Future<Position> getCurrentPosition() {
@@ -60,4 +88,16 @@ class CurrentLocationService {
       ),
     );
   }
+
+  LocationAccessStatus _statusForPermission(LocationPermission permission) {
+    return switch (permission) {
+      LocationPermission.always ||
+      LocationPermission.whileInUse => LocationAccessStatus.ready,
+      LocationPermission.denied => LocationAccessStatus.denied,
+      LocationPermission.deniedForever => LocationAccessStatus.deniedForever,
+      LocationPermission.unableToDetermine => LocationAccessStatus.denied,
+    };
+  }
 }
+
+enum LocationAccessStatus { ready, serviceDisabled, denied, deniedForever }

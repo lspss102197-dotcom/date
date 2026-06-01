@@ -13,10 +13,10 @@
 
 - [x] 建立登入頁。
 - [x] 建立註冊頁。
-- [ ] 串接 `POST /auth/login`。
-- [ ] 串接 `POST /auth/register`。
-- [ ] 串接 `GET /auth/me`。
-- [ ] 處理登入失敗與 token 過期。
+- [x] 串接 `POST /auth/login`。
+- [x] 串接 `POST /auth/register`。
+- [x] 串接 `GET /auth/me`。
+- [x] 處理登入失敗與 token 過期。
 
 ## 旅程功能
 

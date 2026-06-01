@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+import '../features/auth/auth_repository.dart';
 import '../features/auth/login_screen.dart';
+import '../features/permissions/location_permission_prompt_host.dart';
 import '../features/trips/current_location_provider.dart';
 
 class MyApp extends StatelessWidget {
@@ -15,6 +17,7 @@ class MyApp extends StatelessWidget {
       title: 'Carbon Trip',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1A73E8)),
+        scaffoldBackgroundColor: Colors.white,
         inputDecorationTheme: const InputDecorationTheme(
           floatingLabelBehavior: FloatingLabelBehavior.auto,
         ),
@@ -27,23 +30,40 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const AuthGate(),
+      builder: (context, child) {
+        return ColoredBox(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
+      home: const LocationPermissionPromptHost(child: AuthGate()),
     );
   }
 }
 
-class AuthGate extends StatefulWidget {
+class AuthGate extends ConsumerStatefulWidget {
   const AuthGate({super.key});
 
   @override
-  State<AuthGate> createState() => _AuthGateState();
+  ConsumerState<AuthGate> createState() => _AuthGateState();
 }
 
-class _AuthGateState extends State<AuthGate> {
+class _AuthGateState extends ConsumerState<AuthGate> {
   bool _isAuthenticated = false;
+  bool _isRestoringSession = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _restoreSession();
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (_isRestoringSession) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     if (_isAuthenticated) {
       return const MapHomePage();
     }
@@ -55,6 +75,24 @@ class _AuthGateState extends State<AuthGate> {
         });
       },
     );
+  }
+
+  Future<void> _restoreSession() async {
+    UserAccount? user;
+    try {
+      user = await ref.read(authRepositoryProvider).restoreSession();
+    } on Object {
+      user = null;
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _isAuthenticated = user != null;
+      _isRestoringSession = false;
+    });
   }
 }
 

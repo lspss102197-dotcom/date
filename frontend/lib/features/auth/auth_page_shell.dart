@@ -9,6 +9,7 @@ class AuthPageShell extends StatelessWidget {
     required this.onPrimaryAction,
     required this.onSecondaryAction,
     required this.form,
+    this.isSubmitting = false,
     super.key,
   });
 
@@ -19,6 +20,7 @@ class AuthPageShell extends StatelessWidget {
   final VoidCallback onPrimaryAction;
   final VoidCallback onSecondaryAction;
   final Widget form;
+  final bool isSubmitting;
 
   @override
   Widget build(BuildContext context) {
@@ -50,9 +52,12 @@ class AuthPageShell extends StatelessWidget {
                       final fields = _AuthActions(
                         primaryAction: primaryAction,
                         secondaryAction: secondaryAction,
-                        onPrimaryAction: onPrimaryAction,
-                        onSecondaryAction: onSecondaryAction,
+                        onPrimaryAction: isSubmitting ? null : onPrimaryAction,
+                        onSecondaryAction: isSubmitting
+                            ? null
+                            : onSecondaryAction,
                         form: form,
+                        isSubmitting: isSubmitting,
                       );
 
                       if (!wide) {
@@ -152,13 +157,15 @@ class _AuthActions extends StatelessWidget {
     required this.onPrimaryAction,
     required this.onSecondaryAction,
     required this.form,
+    required this.isSubmitting,
   });
 
   final String primaryAction;
   final String secondaryAction;
-  final VoidCallback onPrimaryAction;
-  final VoidCallback onSecondaryAction;
+  final VoidCallback? onPrimaryAction;
+  final VoidCallback? onSecondaryAction;
   final Widget form;
+  final bool isSubmitting;
 
   @override
   Widget build(BuildContext context) {
@@ -179,7 +186,12 @@ class _AuthActions extends StatelessWidget {
             ),
             FilledButton(
               onPressed: onPrimaryAction,
-              child: Text(primaryAction),
+              child: isSubmitting
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(primaryAction),
             ),
           ],
         ),
@@ -210,14 +222,28 @@ String? validateEmail(String? value) {
   return null;
 }
 
+String? validateUsername(String? value) {
+  final requiredError = validateRequired(value, '使用者名稱');
+  if (requiredError != null) {
+    return requiredError;
+  }
+
+  final username = value!.trim();
+  if (username.length < 3 || username.length > 20) {
+    return '使用者名稱需為 3 到 20 個字元';
+  }
+
+  return null;
+}
+
 String? validatePassword(String? value) {
   final requiredError = validateRequired(value, '密碼');
   if (requiredError != null) {
     return requiredError;
   }
 
-  if (value!.length < 6) {
-    return '密碼至少需要 6 個字元';
+  if (value!.length < 8) {
+    return '密碼至少需要 8 個字元';
   }
 
   return null;

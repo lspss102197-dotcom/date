@@ -1,25 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'auth_repository.dart';
 import 'auth_page_shell.dart';
 
-class RegisterScreen extends StatefulWidget {
+class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({required this.onAuthenticated, super.key});
 
   final VoidCallback onAuthenticated;
 
   @override
-  State<RegisterScreen> createState() => _RegisterScreenState();
+  ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
+class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
+  final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _isSubmitting = false;
+  String? _errorMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -28,6 +32,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       subtitle: '開始記錄旅程與碳排成果',
       primaryAction: '下一步',
       secondaryAction: '登入',
+      isSubmitting: _isSubmitting,
       onPrimaryAction: _submit,
       onSecondaryAction: () => Navigator.of(context).pop(),
       form: Form(
@@ -36,14 +41,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             TextFormField(
-              controller: _nameController,
-              autofillHints: const [AutofillHints.name],
+              controller: _usernameController,
+              autofillHints: const [AutofillHints.username],
               decoration: const InputDecoration(
-                labelText: '姓名',
+                labelText: '使用者名稱',
                 border: OutlineInputBorder(),
               ),
               textInputAction: TextInputAction.next,
-              validator: (value) => validateRequired(value, '姓名'),
+              validator: validateUsername,
             ),
             const SizedBox(height: 18),
             TextFormField(
@@ -108,6 +113,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
               validator: _validateConfirmPassword,
               onFieldSubmitted: (_) => _submit(),
             ),
+            if (_errorMessage != null) ...[
+              const SizedBox(height: 14),
+              Text(
+                _errorMessage!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ],
           ],
         ),
       ),
@@ -127,16 +139,49 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return null;
   }
 
-  void _submit() {
-    if (_formKey.currentState?.validate() ?? false) {
+  Future<void> _submit() async {
+    if (!(_formKey.currentState?.validate() ?? false) || _isSubmitting) {
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await ref
+          .read(authRepositoryProvider)
+          .register(
+            username: _usernameController.text,
+            email: _emailController.text,
+            password: _passwordController.text,
+          );
+
+      if (!mounted) {
+        return;
+      }
+
       Navigator.of(context).popUntil((route) => route.isFirst);
       widget.onAuthenticated();
+    } on AuthException catch (error) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = error.message;
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
     }
   }
 
   @override
   void dispose() {
-    _nameController.dispose();
+    _usernameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
