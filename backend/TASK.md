@@ -5,7 +5,7 @@
 - [x] 建立 FastAPI 專案。
 - [x] 建立虛擬環境。
 - [x] 建立 requirements 管理方式。
-- [x]設定 `.env` 讀取。
+- [x] 設定 `.env` 讀取。
 - [x] 設定 PostgreSQL 連線。
 - [ ] 設定 Alembic。
 - [ ] 建立統一錯誤格式。
