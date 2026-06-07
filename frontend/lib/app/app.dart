@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:google_maps_flutter_android/google_maps_flutter_android.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:google_maps_flutter_platform_interface/google_maps_flutter_platform_interface.dart';
 
 import '../features/auth/auth_repository.dart';
 import '../features/auth/login_screen.dart';
@@ -36,7 +39,7 @@ class MyApp extends StatelessWidget {
           child: child ?? const SizedBox.shrink(),
         );
       },
-      home: const LocationPermissionPromptHost(child: AuthGate()),
+      home: const AuthGate(),
     );
   }
 }
@@ -65,7 +68,7 @@ class _AuthGateState extends ConsumerState<AuthGate> {
     }
 
     if (_isAuthenticated) {
-      return const MapHomePage();
+      return const LocationPermissionPromptHost(child: MapHomePage());
     }
 
     return LoginScreen(
@@ -80,7 +83,10 @@ class _AuthGateState extends ConsumerState<AuthGate> {
   Future<void> _restoreSession() async {
     UserAccount? user;
     try {
-      user = await ref.read(authRepositoryProvider).restoreSession();
+      user = await ref
+          .read(authRepositoryProvider)
+          .restoreSession()
+          .timeout(const Duration(seconds: 3), onTimeout: () => null);
     } on Object {
       user = null;
     }
@@ -107,6 +113,7 @@ class _MapHomePageState extends ConsumerState<MapHomePage> {
   static const LatLng _taipeiMainStation = LatLng(25.0478, 121.5170);
 
   GoogleMapController? _mapController;
+  late final Future<void> _mapInitialization = _initializeGoogleMapsAndroid();
 
   @override
   Widget build(BuildContext context) {
@@ -129,36 +136,47 @@ class _MapHomePageState extends ConsumerState<MapHomePage> {
 
     return Scaffold(
       appBar: const _MapAppBar(),
-      body: Stack(
-        children: [
-          GoogleMap(
-            initialCameraPosition: const CameraPosition(
-              target: _taipeiMainStation,
-              zoom: 14,
-            ),
-            markers: {
-              if (currentLatLng != null)
-                Marker(
-                  markerId: const MarkerId('current_location'),
-                  position: currentLatLng,
-                ),
-            },
-            myLocationButtonEnabled: true,
-            myLocationEnabled: currentPosition != null,
-            onMapCreated: (controller) {
-              _mapController = controller;
+      body: FutureBuilder<void>(
+        future: _mapInitialization,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-              if (currentLatLng != null) {
-                controller.animateCamera(CameraUpdate.newLatLng(currentLatLng));
-              }
-            },
-          ),
-          Positioned(
-            top: 12,
-            right: 12,
-            child: _CoordinateBadge(positionState: positionState),
-          ),
-        ],
+          return Stack(
+            children: [
+              GoogleMap(
+                initialCameraPosition: const CameraPosition(
+                  target: _taipeiMainStation,
+                  zoom: 14,
+                ),
+                markers: {
+                  if (currentLatLng != null)
+                    Marker(
+                      markerId: const MarkerId('current_location'),
+                      position: currentLatLng,
+                    ),
+                },
+                myLocationButtonEnabled: true,
+                myLocationEnabled: currentPosition != null,
+                onMapCreated: (controller) {
+                  _mapController = controller;
+
+                  if (currentLatLng != null) {
+                    controller.animateCamera(
+                      CameraUpdate.newLatLng(currentLatLng),
+                    );
+                  }
+                },
+              ),
+              Positioned(
+                top: 12,
+                right: 12,
+                child: _CoordinateBadge(positionState: positionState),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -167,6 +185,18 @@ class _MapHomePageState extends ConsumerState<MapHomePage> {
   void dispose() {
     _mapController?.dispose();
     super.dispose();
+  }
+}
+
+Future<void> _initializeGoogleMapsAndroid() async {
+  if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+    return;
+  }
+
+  final mapsImplementation = GoogleMapsFlutterPlatform.instance;
+  if (mapsImplementation is GoogleMapsFlutterAndroid) {
+    mapsImplementation.useAndroidViewSurface = true;
+    await mapsImplementation.initializeWithRenderer(AndroidMapRenderer.latest);
   }
 }
 
@@ -179,7 +209,7 @@ class _CoordinateBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final text = positionState.when(
       data: (position) => _formatCoordinate(position),
-      error: (error, stackTrace) => '定位未啟用',
+      error: (error, stackTrace) => '定位失敗',
       loading: () => '定位中...',
     );
 

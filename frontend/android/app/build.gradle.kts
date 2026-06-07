@@ -4,6 +4,28 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+fun readDotenv(rootDir: File): Map<String, String> {
+    val envFile = rootDir.resolve(".env")
+    if (!envFile.isFile) {
+        return emptyMap()
+    }
+
+    return envFile.readLines()
+        .map { it.trim() }
+        .filter { it.isNotEmpty() && !it.startsWith("#") && it.contains("=") }
+        .associate {
+            val key = it.substringBefore("=").trim()
+            val value = it.substringAfter("=").trim().trim('"', '\'')
+            key to value
+        }
+}
+
+val dotenv = readDotenv(rootProject.projectDir.parentFile)
+val googleMapsAndroidApiKey =
+    dotenv["GOOGLE_MAPS_ANDROID_API_KEY"]
+        ?: providers.environmentVariable("GOOGLE_MAPS_ANDROID_API_KEY").orNull
+        ?: ""
+
 android {
     namespace = "com.example.frontend"
     compileSdk = flutter.compileSdkVersion
@@ -23,6 +45,7 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        manifestPlaceholders["googleMapsAndroidApiKey"] = googleMapsAndroidApiKey
     }
 
     buildTypes {

@@ -1,13 +1,6 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
 
 import 'package:frontend/app/app.dart';
@@ -16,95 +9,70 @@ import 'package:frontend/features/auth/auth_repository.dart';
 import 'package:frontend/features/trips/current_location_provider.dart';
 
 void main() {
-  testWidgets('Shows login first and opens map after auth', (
+  testWidgets('shows login first and opens map after auth', (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
-          appPreferencesProvider.overrideWithValue(
-            FakeAppPreferences(hasSeenPrompt: true),
-          ),
-          currentLocationServiceProvider.overrideWithValue(
-            FakeLocationService(status: LocationAccessStatus.ready),
-          ),
-          currentPositionProvider.overrideWith(
-            (ref) => Stream.value(_fakePosition()),
-          ),
-        ],
-        child: const MyApp(),
-      ),
-    );
-    await tester.pumpAndSettle();
+    await _pumpApp(tester);
 
-    expect(find.text('登入'), findsOneWidget);
-    expect(find.text('使用者名稱'), findsOneWidget);
-    expect(find.text('密碼'), findsOneWidget);
+    expect(find.text('EcoCommute'), findsOneWidget);
+    expect(find.text('請輸入帳號'), findsOneWidget);
+    expect(find.text('請輸入密碼'), findsOneWidget);
+    expect(find.byType(SingleChildScrollView), findsNothing);
     expect(find.text('Google Map'), findsNothing);
 
     await tester.enterText(
-      find.widgetWithText(TextFormField, '使用者名稱'),
+      find.widgetWithText(TextFormField, '請輸入帳號'),
       'demo-user',
     );
     await tester.enterText(
-      find.widgetWithText(TextFormField, '密碼'),
+      find.widgetWithText(TextFormField, '請輸入密碼'),
       'secret123',
     );
-    await tester.tap(find.widgetWithText(FilledButton, '下一步'));
+    final loginButton = find.widgetWithText(FilledButton, '登入');
+    await tester.ensureVisible(loginButton);
+    await tester.tap(loginButton);
     await tester.pumpAndSettle();
 
     expect(find.text('Google Map'), findsOneWidget);
     expect(find.text('5.552, 98.556'), findsOneWidget);
   });
 
-  testWidgets('Opens map after registration', (WidgetTester tester) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
-          appPreferencesProvider.overrideWithValue(
-            FakeAppPreferences(hasSeenPrompt: true),
-          ),
-          currentLocationServiceProvider.overrideWithValue(
-            FakeLocationService(status: LocationAccessStatus.ready),
-          ),
-          currentPositionProvider.overrideWith(
-            (ref) => Stream.value(_fakePosition()),
-          ),
-        ],
-        child: const MyApp(),
-      ),
-    );
+  testWidgets('opens map after registration', (WidgetTester tester) async {
+    await _pumpApp(tester);
+
+    final registerLink = find.widgetWithText(TextButton, '點我註冊');
+    await tester.ensureVisible(registerLink);
+    await tester.tap(registerLink);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.widgetWithText(TextButton, '建立帳戶'));
-    await tester.pumpAndSettle();
+    expect(find.byType(SingleChildScrollView), findsNothing);
 
     await tester.enterText(
-      find.widgetWithText(TextFormField, '使用者名稱'),
+      find.widgetWithText(TextFormField, '請輸入帳號'),
       'demo-user',
     );
     await tester.enterText(
-      find.widgetWithText(TextFormField, '電子郵件'),
+      find.widgetWithText(TextFormField, '請輸入 Email'),
       'demo@example.com',
     );
     await tester.enterText(
-      find.widgetWithText(TextFormField, '密碼'),
+      find.widgetWithText(TextFormField, '設定密碼'),
       'secret123',
     );
     await tester.enterText(
-      find.widgetWithText(TextFormField, '確認密碼'),
+      find.widgetWithText(TextFormField, '再次輸入密碼'),
       'secret123',
     );
-    await tester.tap(find.widgetWithText(FilledButton, '下一步'));
+    final submitButton = find.widgetWithText(FilledButton, '註冊');
+    await tester.ensureVisible(submitButton);
+    await tester.tap(submitButton);
     await tester.pumpAndSettle();
 
     expect(find.text('Google Map'), findsOneWidget);
     expect(find.text('5.552, 98.556'), findsOneWidget);
   });
 
-  testWidgets('requests system location permission without custom prompt', (
+  testWidgets('does not request location permission before auth', (
     WidgetTester tester,
   ) async {
     final preferences = FakeAppPreferences();
@@ -112,20 +80,46 @@ void main() {
       status: LocationAccessStatus.denied,
     );
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
-          appPreferencesProvider.overrideWithValue(preferences),
-          currentLocationServiceProvider.overrideWithValue(locationService),
-        ],
-        child: const MyApp(),
-      ),
+    await _pumpApp(
+      tester,
+      preferences: preferences,
+      locationService: locationService,
     );
+
+    expect(find.text('EcoCommute'), findsOneWidget);
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(locationService.requestAccessCount, 0);
+    expect(preferences.hasMarkedPromptSeen, isFalse);
+  });
+
+  testWidgets('requests location permission after auth opens the map', (
+    WidgetTester tester,
+  ) async {
+    final preferences = FakeAppPreferences();
+    final locationService = FakeLocationService(
+      status: LocationAccessStatus.denied,
+    );
+
+    await _pumpApp(
+      tester,
+      preferences: preferences,
+      locationService: locationService,
+    );
+
+    await tester.enterText(
+      find.widgetWithText(TextFormField, '請輸入帳號'),
+      'demo-user',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextFormField, '請輸入密碼'),
+      'secret123',
+    );
+    final loginButton = find.widgetWithText(FilledButton, '登入');
+    await tester.ensureVisible(loginButton);
+    await tester.tap(loginButton);
     await tester.pumpAndSettle();
 
-    expect(find.text('登入'), findsOneWidget);
-    expect(find.text('允許定位權限'), findsNothing);
+    expect(find.text('Google Map'), findsOneWidget);
     expect(locationService.requestAccessCount, 1);
     expect(preferences.hasMarkedPromptSeen, isTrue);
   });
@@ -133,82 +127,92 @@ void main() {
   testWidgets('does not prompt when location permission is ready', (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
-          appPreferencesProvider.overrideWithValue(FakeAppPreferences()),
-          currentLocationServiceProvider.overrideWithValue(
-            FakeLocationService(status: LocationAccessStatus.ready),
-          ),
-        ],
-        child: const MyApp(),
-      ),
-    );
-    await tester.pumpAndSettle();
+    await _pumpApp(tester, preferences: FakeAppPreferences());
 
-    expect(find.text('登入'), findsOneWidget);
-    expect(find.text('定位已啟用'), findsNothing);
+    expect(find.text('EcoCommute'), findsOneWidget);
+    expect(find.byType(AlertDialog), findsNothing);
   });
 
-  testWidgets('shows settings action when location service is disabled', (
+  testWidgets(
+    'shows settings action on map when location service is disabled',
+    (WidgetTester tester) async {
+      await _pumpApp(
+        tester,
+        authRepository: FakeAuthRepository(
+          restoredUser: const UserAccount(
+            id: 1,
+            username: 'demo-user',
+            email: 'demo@example.com',
+            visualState: 'normal',
+          ),
+        ),
+        locationService: FakeLocationService(
+          status: LocationAccessStatus.serviceDisabled,
+        ),
+      );
+
+      expect(find.text('Google Map'), findsOneWidget);
+      expect(find.byType(AlertDialog), findsOneWidget);
+      expect(find.byType(FilledButton), findsWidgets);
+    },
+  );
+
+  testWidgets('opens map when an existing session is valid', (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
-          appPreferencesProvider.overrideWithValue(
-            FakeAppPreferences(hasSeenPrompt: true),
-          ),
-          currentLocationServiceProvider.overrideWithValue(
-            FakeLocationService(status: LocationAccessStatus.serviceDisabled),
-          ),
-        ],
-        child: const MyApp(),
+    await _pumpApp(
+      tester,
+      authRepository: FakeAuthRepository(
+        restoredUser: const UserAccount(
+          id: 1,
+          username: 'demo-user',
+          email: 'demo@example.com',
+          visualState: 'normal',
+        ),
       ),
     );
-    await tester.pumpAndSettle();
 
-    expect(find.text('登入'), findsOneWidget);
-    expect(find.text('開啟定位服務'), findsOneWidget);
-    expect(find.text('開啟設定'), findsOneWidget);
-  });
-
-  testWidgets('opens map when an existing token restores the session', (
-    WidgetTester tester,
-  ) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          authRepositoryProvider.overrideWithValue(
-            FakeAuthRepository(
-              restoredUser: const UserAccount(
-                id: 1,
-                username: 'demo-user',
-                email: 'demo@example.com',
-                visualState: 'normal',
-              ),
-            ),
-          ),
-          appPreferencesProvider.overrideWithValue(
-            FakeAppPreferences(hasSeenPrompt: true),
-          ),
-          currentLocationServiceProvider.overrideWithValue(
-            FakeLocationService(status: LocationAccessStatus.ready),
-          ),
-          currentPositionProvider.overrideWith(
-            (ref) => Stream.value(_fakePosition()),
-          ),
-        ],
-        child: const MyApp(),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text('登入'), findsNothing);
+    expect(find.text('EcoCommute'), findsNothing);
     expect(find.text('Google Map'), findsOneWidget);
   });
+
+  testWidgets('returns to login when session restore fails', (
+    WidgetTester tester,
+  ) async {
+    await _pumpApp(tester, authRepository: FakeAuthRepository());
+
+    expect(find.text('EcoCommute'), findsOneWidget);
+    expect(find.text('Google Map'), findsNothing);
+  });
+}
+
+Future<void> _pumpApp(
+  WidgetTester tester, {
+  FakeAuthRepository? authRepository,
+  FakeAppPreferences? preferences,
+  FakeLocationService? locationService,
+}) async {
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        authRepositoryProvider.overrideWithValue(
+          authRepository ?? FakeAuthRepository(),
+        ),
+        appPreferencesProvider.overrideWithValue(
+          preferences ?? FakeAppPreferences(hasSeenPrompt: true),
+        ),
+        currentLocationServiceProvider.overrideWithValue(
+          locationService ??
+              FakeLocationService(status: LocationAccessStatus.ready),
+        ),
+        currentPositionProvider.overrideWith(
+          (ref) => Stream.value(_fakePosition()),
+        ),
+      ],
+      child: const MyApp(),
+    ),
+  );
+  await tester.pumpAndSettle();
 }
 
 class FakeAuthRepository implements AuthRepository {

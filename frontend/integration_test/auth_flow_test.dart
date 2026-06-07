@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:integration_test/integration_test.dart';
 
@@ -21,7 +21,7 @@ void main() {
             FakeAppPreferences(hasSeenPrompt: true),
           ),
           currentLocationServiceProvider.overrideWithValue(
-            FakeLocationService(status: LocationAccessStatus.ready),
+            const FakeLocationService(status: LocationAccessStatus.ready),
           ),
           currentPositionProvider.overrideWith(
             (ref) => Stream.value(_fakePosition()),
@@ -32,26 +32,30 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.widgetWithText(TextButton, '建立帳戶'));
+    final registerLink = find.widgetWithText(TextButton, '點我註冊');
+    await tester.ensureVisible(registerLink);
+    await tester.tap(registerLink);
     await tester.pumpAndSettle();
 
     await tester.enterText(
-      find.widgetWithText(TextFormField, '使用者名稱'),
+      find.widgetWithText(TextFormField, '請輸入帳號'),
       'demo-user',
     );
     await tester.enterText(
-      find.widgetWithText(TextFormField, '電子郵件'),
+      find.widgetWithText(TextFormField, '請輸入 Email'),
       'demo@example.com',
     );
     await tester.enterText(
-      find.widgetWithText(TextFormField, '密碼'),
+      find.widgetWithText(TextFormField, '設定密碼'),
       'secret123',
     );
     await tester.enterText(
-      find.widgetWithText(TextFormField, '確認密碼'),
+      find.widgetWithText(TextFormField, '再次輸入密碼'),
       'secret123',
     );
-    await tester.tap(find.widgetWithText(FilledButton, '下一步'));
+    final submitButton = find.widgetWithText(FilledButton, '註冊');
+    await tester.ensureVisible(submitButton);
+    await tester.tap(submitButton);
     await tester.pumpAndSettle();
 
     expect(find.text('Google Map'), findsOneWidget);

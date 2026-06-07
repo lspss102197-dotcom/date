@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'auth_repository.dart';
 import 'auth_page_shell.dart';
+import 'auth_repository.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({required this.onAuthenticated, super.key});
@@ -21,18 +21,34 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _confirmPasswordController = TextEditingController();
 
   bool _obscurePassword = true;
-  bool _obscureConfirmPassword = true;
   bool _isSubmitting = false;
   String? _errorMessage;
+
+  bool get _hasEnoughChars => _passwordController.text.length >= 8;
+
+  bool get _hasLettersAndNumbers {
+    final password = _passwordController.text;
+    return RegExp('[A-Za-z]').hasMatch(password) &&
+        RegExp('[0-9]').hasMatch(password);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _passwordController.addListener(_refreshPasswordRequirements);
+  }
 
   @override
   Widget build(BuildContext context) {
     return AuthPageShell(
-      title: '建立帳戶',
-      subtitle: '開始記錄旅程與碳排成果',
-      primaryAction: '下一步',
-      secondaryAction: '登入',
+      subtitle: '註冊帳戶開始累積你的減碳旅程',
+      primaryAction: '註冊',
+      secondaryPrompt: '已經有帳號了嗎？',
+      secondaryAction: '返回登入',
       isSubmitting: _isSubmitting,
+      showBackButton: true,
+      showLogo: false,
+      secondaryInsidePanel: true,
       onPrimaryAction: _submit,
       onSecondaryAction: () => Navigator.of(context).pop(),
       form: Form(
@@ -40,81 +56,73 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            TextFormField(
+            AuthTextField(
+              label: '帳號',
+              hint: '請輸入帳號',
+              icon: Icons.person_outline,
               controller: _usernameController,
               autofillHints: const [AutofillHints.username],
-              decoration: const InputDecoration(
-                labelText: '使用者名稱',
-                border: OutlineInputBorder(),
-              ),
               textInputAction: TextInputAction.next,
               validator: validateUsername,
             ),
-            const SizedBox(height: 18),
-            TextFormField(
+            const SizedBox(height: 14),
+            AuthTextField(
+              label: 'Email',
+              hint: '請輸入 Email',
+              icon: Icons.mail_outline,
               controller: _emailController,
               autofillHints: const [AutofillHints.email],
-              decoration: const InputDecoration(
-                labelText: '電子郵件',
-                border: OutlineInputBorder(),
-              ),
               keyboardType: TextInputType.emailAddress,
               textInputAction: TextInputAction.next,
               validator: validateEmail,
             ),
-            const SizedBox(height: 18),
-            TextFormField(
+            const SizedBox(height: 14),
+            AuthTextField(
+              label: '密碼',
+              hint: '設定密碼',
+              icon: Icons.lock_outline,
               controller: _passwordController,
               autofillHints: const [AutofillHints.newPassword],
-              decoration: InputDecoration(
-                labelText: '密碼',
-                border: const OutlineInputBorder(),
-                suffixIcon: IconButton(
-                  tooltip: _obscurePassword ? '顯示密碼' : '隱藏密碼',
-                  icon: Icon(
-                    _obscurePassword
-                        ? Icons.visibility_outlined
-                        : Icons.visibility_off_outlined,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _obscurePassword = !_obscurePassword;
-                    });
-                  },
-                ),
-              ),
               obscureText: _obscurePassword,
               textInputAction: TextInputAction.next,
               validator: validatePassword,
+              suffixIcon: IconButton(
+                tooltip: _obscurePassword ? '顯示密碼' : '隱藏密碼',
+                icon: Icon(
+                  _obscurePassword
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                  color: ecoMuted,
+                  size: 30,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _obscurePassword = !_obscurePassword;
+                  });
+                },
+              ),
             ),
-            const SizedBox(height: 18),
-            TextFormField(
+            const SizedBox(height: 6),
+            _PasswordRequirement(label: '至少 8 個字', isMet: _hasEnoughChars),
+            const SizedBox(height: 4),
+            _PasswordRequirement(
+              label: '包含英文字母與數字',
+              isMet: _hasLettersAndNumbers,
+            ),
+            const SizedBox(height: 14),
+            AuthTextField(
+              label: '確認密碼',
+              hint: '再次輸入密碼',
+              icon: Icons.lock_reset_outlined,
               controller: _confirmPasswordController,
               autofillHints: const [AutofillHints.newPassword],
-              decoration: InputDecoration(
-                labelText: '確認密碼',
-                border: const OutlineInputBorder(),
-                suffixIcon: IconButton(
-                  tooltip: _obscureConfirmPassword ? '顯示密碼' : '隱藏密碼',
-                  icon: Icon(
-                    _obscureConfirmPassword
-                        ? Icons.visibility_outlined
-                        : Icons.visibility_off_outlined,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _obscureConfirmPassword = !_obscureConfirmPassword;
-                    });
-                  },
-                ),
-              ),
-              obscureText: _obscureConfirmPassword,
+              obscureText: true,
               textInputAction: TextInputAction.done,
               validator: _validateConfirmPassword,
               onFieldSubmitted: (_) => _submit(),
             ),
             if (_errorMessage != null) ...[
-              const SizedBox(height: 14),
+              const SizedBox(height: 8),
               Text(
                 _errorMessage!,
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
@@ -133,7 +141,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     }
 
     if (value != _passwordController.text) {
-      return '兩次輸入的密碼不一致';
+      return '再次輸入的密碼不一致';
     }
 
     return null;
@@ -181,10 +189,44 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   @override
   void dispose() {
+    _passwordController.removeListener(_refreshPasswordRequirements);
     _usernameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
+  }
+
+  void _refreshPasswordRequirements() {
+    setState(() {});
+  }
+}
+
+class _PasswordRequirement extends StatelessWidget {
+  const _PasswordRequirement({required this.label, required this.isMet});
+
+  final String label;
+  final bool isMet;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(
+          isMet ? Icons.check_circle_outline : Icons.radio_button_unchecked,
+          color: isMet ? ecoPrimary : ecoMuted,
+          size: 22,
+        ),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: const TextStyle(
+            color: ecoMuted,
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
   }
 }
