@@ -27,6 +27,7 @@ class AuthPageShell extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
+<<<<<<< Updated upstream
       backgroundColor: colorScheme.surface,
       body: SafeArea(
         child: Center(
@@ -39,6 +40,97 @@ class AuthPageShell extends StatelessWidget {
                   border: Border.all(color: colorScheme.outlineVariant),
                   borderRadius: BorderRadius.circular(8),
                   color: colorScheme.surface,
+=======
+      backgroundColor: const Color(0xFFF8FBFF),
+      resizeToAvoidBottomInset: true,
+      body: Stack(
+        children: [
+          const ColoredBox(color: Color(0xFFF8FBFF), child: SizedBox.expand()),
+          SafeArea(
+            child: Stack(
+              children: [
+                if (showBackButton)
+                  Positioned(
+                    top: 16,
+                    left: 20,
+                    child: IconButton(
+                      tooltip: '返回',
+                      icon: const Icon(Icons.arrow_back, size: 32),
+                      color: const Color(0xFF263A37),
+                      onPressed: isSubmitting
+                          ? null
+                          : onBack ?? () => Navigator.of(context).maybePop(),
+                    ),
+                  ),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    const horizontalPadding = 28.0;
+                    const verticalPadding = 14.0;
+                    final contentWidth =
+                        (constraints.maxWidth - horizontalPadding * 2)
+                            .clamp(0.0, 640.0)
+                            .toDouble();
+                    final contentMinHeight =
+                        (constraints.maxHeight - verticalPadding * 2)
+                            .clamp(0.0, double.infinity)
+                            .toDouble();
+
+                    return SingleChildScrollView(
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: horizontalPadding,
+                          vertical: verticalPadding,
+                        ),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: contentMinHeight,
+                          ),
+                          child: Center(
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(
+                                maxWidth: contentWidth,
+                              ),
+                              child: SizedBox(
+                                width: contentWidth,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    _AuthBrand(
+                                      showLogo: showLogo,
+                                      subtitle: subtitle,
+                                    ),
+                                    const SizedBox(height: 24),
+                                    _AuthPanel(
+                                      form: form,
+                                      primaryAction: primaryAction,
+                                      onPrimaryAction: isSubmitting
+                                          ? null
+                                          : onPrimaryAction,
+                                      isSubmitting: isSubmitting,
+                                      showBiometric: showBiometric,
+                                      footer: secondaryInsidePanel
+                                          ? footer
+                                          : null,
+                                    ),
+                                    if (!secondaryInsidePanel &&
+                                        footer != null) ...[
+                                      const SizedBox(height: 20),
+                                      footer,
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+>>>>>>> Stashed changes
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(32),

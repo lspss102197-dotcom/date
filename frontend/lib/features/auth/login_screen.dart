@@ -83,8 +83,53 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
             const SizedBox(height: 12),
             Align(
+<<<<<<< Updated upstream
               alignment: Alignment.centerLeft,
               child: TextButton(onPressed: () {}, child: const Text('忘記密碼？')),
+=======
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () {},
+                style: TextButton.styleFrom(
+                  foregroundColor: ecoPrimary,
+                  textStyle: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                child: const Text('忘記密碼？'),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 4,
+              children: [
+                const Text(
+                  '還沒有註冊帳號嗎？',
+                  style: TextStyle(
+                    color: Color(0xFF263A37),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                TextButton(
+                  onPressed: _isSubmitting ? null : _openRegister,
+                  style: TextButton.styleFrom(
+                    foregroundColor: ecoPrimary,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    minimumSize: const Size(0, 36),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    textStyle: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  child: const Text('點我註冊'),
+                ),
+              ],
+>>>>>>> Stashed changes
             ),
             if (_errorMessage != null) ...[
               const SizedBox(height: 8),

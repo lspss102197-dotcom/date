@@ -7,6 +7,11 @@ final currentLocationServiceProvider = Provider<CurrentLocationService>((ref) {
   return const CurrentLocationService();
 });
 
+final locationAccessStatusProvider =
+    FutureProvider.autoDispose<LocationAccessStatus>((ref) {
+  return ref.watch(currentLocationServiceProvider).checkAccessStatus();
+});
+
 final currentPositionProvider = StreamProvider.autoDispose<Position>((
   ref,
 ) async* {
