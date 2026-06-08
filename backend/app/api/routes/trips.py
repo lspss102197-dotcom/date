@@ -88,10 +88,11 @@ def end_trip(
     if trip.ended_at is not None:
         raise HTTPException(status_code=400, detail="此旅程已經結束，無法重複結束")
         
-    if end_data.ended_at < trip.started_at:
+    ended_at = end_data.ended_at.replace(tzinfo=None) if end_data.ended_at.tzinfo else end_data.ended_at
+    if ended_at < trip.started_at:
         raise HTTPException(status_code=400, detail="結束時間不能早於開始時間")
 
-    trip.ended_at = end_data.ended_at
+    trip.ended_at = ended_at
     
     # 計算持續時間
     trip.duration_seconds = TripService.calculate_duration_seconds(trip.started_at, trip.ended_at)
