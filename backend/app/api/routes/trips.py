@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 import datetime
 from typing import List
+import os
 
 from app.core.database import get_db
 from app.api.routes.auth import get_current_user
@@ -91,17 +92,32 @@ def end_trip(
         raise HTTPException(status_code=400, detail="結束時間不能早於開始時間")
 
     trip.ended_at = end_data.ended_at
-    trip.transport_type = end_data.transport_type
     
-    # 計算持續時間與距離
+    # 計算持續時間
     trip.duration_seconds = TripService.calculate_duration_seconds(trip.started_at, trip.ended_at)
     
-    # 抓出此旅程所有已上傳的 GPS 點並排序計算距離
+    # 抓出此旅程所有已上傳的 GPS 點並進行過濾
     points = db.query(GPSPointModel).filter(GPSPointModel.trip_id == trip_id).all()
-    trip.distance_km = TripService.calculate_distance_km(points)
     
-    # 計算碳排與減碳量
-    emission, saved = TripService.calculate_carbon_metrics(trip.distance_km, trip.transport_type)
+    # 讀取合理時速上限並過濾飄移點
+    max_speed_kmh = float(os.getenv("GPS_MAX_REASONABLE_SPEED_KMH", "120.0"))
+    filtered_points = TripService.filter_unreasonable_points(points, max_speed_kmh)
+    
+    # 從資料庫中刪除不合理的點位
+    filtered_ids = {pt.id for pt in filtered_points}
+    for pt in points:
+        if pt.id not in filtered_ids:
+            db.delete(pt)
+            
+    # 使用過濾後的點計算距離
+    trip.distance_km = TripService.calculate_distance_km(filtered_points)
+    
+    # 自動偵測交通方式 (無視前端帶入的手動選項，以提升自動判定精準度)
+    detected_transport = TripService.detect_transport_type(filtered_points, trip.started_at, trip.ended_at)
+    trip.transport_type = detected_transport
+    
+    # 計算碳排與減碳量 (傳入 db 階段)
+    emission, saved = TripService.calculate_carbon_metrics(db, trip.distance_km, detected_transport)
     trip.carbon_emission = emission
     trip.carbon_saved = saved
     
