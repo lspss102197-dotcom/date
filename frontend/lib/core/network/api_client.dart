@@ -40,6 +40,13 @@ class ApiClient {
 
           handler.next(options);
         },
+        onError: (error, handler) async {
+          if (error.response?.statusCode == 401) {
+            await tokenStorage.clearAccessToken();
+          }
+
+          handler.next(error);
+        },
       ),
     );
   }

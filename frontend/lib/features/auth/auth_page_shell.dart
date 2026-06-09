@@ -51,7 +51,22 @@ class AuthPageShell extends StatelessWidget {
           );
 
     return Scaffold(
+<<<<<<< Updated upstream
+      backgroundColor: colorScheme.surface,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 900),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  border: Border.all(color: colorScheme.outlineVariant),
+                  borderRadius: BorderRadius.circular(8),
+                  color: colorScheme.surface,
+=======
       backgroundColor: const Color(0xFFF8FBFF),
+      resizeToAvoidBottomInset: true,
       body: Stack(
         children: [
           const ColoredBox(color: Color(0xFFF8FBFF), child: SizedBox.expand()),
@@ -79,52 +94,59 @@ class AuthPageShell extends StatelessWidget {
                         (constraints.maxWidth - horizontalPadding * 2)
                             .clamp(0.0, 640.0)
                             .toDouble();
-                    final contentHeight =
+                    final contentMinHeight =
                         (constraints.maxHeight - verticalPadding * 2)
                             .clamp(0.0, double.infinity)
                             .toDouble();
 
-                    return Center(
+                    return SingleChildScrollView(
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: horizontalPadding,
                           vertical: verticalPadding,
                         ),
-                        child: SizedBox(
-                          width: contentWidth,
-                          height: contentHeight,
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            alignment: Alignment.center,
-                            child: SizedBox(
-                              width: contentWidth,
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  _AuthBrand(
-                                    showLogo: showLogo,
-                                    subtitle: subtitle,
-                                  ),
-                                  const SizedBox(height: 24),
-                                  _AuthPanel(
-                                    form: form,
-                                    primaryAction: primaryAction,
-                                    onPrimaryAction: isSubmitting
-                                        ? null
-                                        : onPrimaryAction,
-                                    isSubmitting: isSubmitting,
-                                    showBiometric: showBiometric,
-                                    footer: secondaryInsidePanel
-                                        ? footer
-                                        : null,
-                                  ),
-                                  if (!secondaryInsidePanel &&
-                                      footer != null) ...[
-                                    const SizedBox(height: 20),
-                                    footer,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: contentMinHeight,
+                          ),
+                          child: Center(
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(
+                                maxWidth: contentWidth,
+                              ),
+                              child: SizedBox(
+                                width: contentWidth,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    _AuthBrand(
+                                      showLogo: showLogo,
+                                      subtitle: subtitle,
+                                    ),
+                                    const SizedBox(height: 24),
+                                    _AuthPanel(
+                                      form: form,
+                                      primaryAction: primaryAction,
+                                      onPrimaryAction: isSubmitting
+                                          ? null
+                                          : onPrimaryAction,
+                                      isSubmitting: isSubmitting,
+                                      showBiometric: showBiometric,
+                                      footer: secondaryInsidePanel
+                                          ? footer
+                                          : null,
+                                    ),
+                                    if (!secondaryInsidePanel &&
+                                        footer != null) ...[
+                                      const SizedBox(height: 20),
+                                      footer,
+                                    ],
                                   ],
-                                ],
+                                ),
                               ),
                             ),
                           ),
@@ -132,11 +154,50 @@ class AuthPageShell extends StatelessWidget {
                       ),
                     );
                   },
+>>>>>>> Stashed changes
                 ),
-              ],
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final wide = constraints.maxWidth >= 680;
+                      final brand = _AuthBrand(
+                        title: title,
+                        subtitle: subtitle,
+                      );
+                      final fields = _AuthActions(
+                        primaryAction: primaryAction,
+                        secondaryAction: secondaryAction,
+                        onPrimaryAction: isSubmitting ? null : onPrimaryAction,
+                        onSecondaryAction: isSubmitting
+                            ? null
+                            : onSecondaryAction,
+                        form: form,
+                        isSubmitting: isSubmitting,
+                      );
+
+                      if (!wide) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [brand, const SizedBox(height: 36), fields],
+                        );
+                      }
+
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(child: brand),
+                          const SizedBox(width: 56),
+                          Expanded(child: fields),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }

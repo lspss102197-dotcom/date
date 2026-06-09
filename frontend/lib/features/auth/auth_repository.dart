@@ -148,6 +148,10 @@ class AuthException implements Exception {
   final String message;
 
   factory AuthException.fromDio(DioException error) {
+    if (error.response?.statusCode == 401) {
+      return const AuthException('登入已過期，請重新登入');
+    }
+
     final responseData = error.response?.data;
 
     if (responseData is Map<String, dynamic>) {

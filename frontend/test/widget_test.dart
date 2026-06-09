@@ -2,22 +2,49 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import 'package:frontend/app/app.dart';
+import 'package:frontend/core/config/app_config.dart';
 import 'package:frontend/core/storage/app_preferences.dart';
 import 'package:frontend/features/auth/auth_repository.dart';
 import 'package:frontend/features/trips/current_location_provider.dart';
+import 'package:frontend/features/trips/trip_repository.dart';
 
 void main() {
   testWidgets('shows login first and opens map after auth', (
     WidgetTester tester,
   ) async {
-    await _pumpApp(tester);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
+          appPreferencesProvider.overrideWithValue(
+            FakeAppPreferences(hasSeenPrompt: true),
+          ),
+          currentLocationServiceProvider.overrideWithValue(
+            FakeLocationService(status: LocationAccessStatus.ready),
+          ),
+          currentPositionProvider.overrideWith(
+            (ref) => Stream.value(_fakePosition()),
+          ),
+        ],
+        child: const MyApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
 
+<<<<<<< Updated upstream
+    expect(find.text('登入'), findsOneWidget);
+    expect(find.text('使用者名稱'), findsOneWidget);
+    expect(find.text('密碼'), findsOneWidget);
+=======
     expect(find.text('EcoCommute'), findsOneWidget);
     expect(find.text('請輸入帳號'), findsOneWidget);
     expect(find.text('請輸入密碼'), findsOneWidget);
-    expect(find.byType(SingleChildScrollView), findsNothing);
+    expect(find.byType(SingleChildScrollView), findsOneWidget);
+    expect(find.byType(FittedBox), findsNothing);
+>>>>>>> Stashed changes
     expect(find.text('Google Map'), findsNothing);
 
     await tester.enterText(
@@ -45,7 +72,8 @@ void main() {
     await tester.tap(registerLink);
     await tester.pumpAndSettle();
 
-    expect(find.byType(SingleChildScrollView), findsNothing);
+    await tester.tap(find.widgetWithText(TextButton, '建立帳戶'));
+    await tester.pumpAndSettle();
 
     await tester.enterText(
       find.widgetWithText(TextFormField, '請輸入帳號'),
@@ -124,10 +152,40 @@ void main() {
     expect(preferences.hasMarkedPromptSeen, isTrue);
   });
 
+  testWidgets('shows location permission status on the map', (
+    WidgetTester tester,
+  ) async {
+    await _pumpApp(
+      tester,
+      authRepository: FakeAuthRepository(
+        restoredUser: const UserAccount(
+          id: 1,
+          username: 'demo-user',
+          email: 'demo@example.com',
+          visualState: 'normal',
+        ),
+      ),
+    );
+
+    expect(find.text('權限已開啟'), findsOneWidget);
+  });
+
   testWidgets('does not prompt when location permission is ready', (
     WidgetTester tester,
   ) async {
-    await _pumpApp(tester, preferences: FakeAppPreferences());
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
+          appPreferencesProvider.overrideWithValue(FakeAppPreferences()),
+          currentLocationServiceProvider.overrideWithValue(
+            FakeLocationService(status: LocationAccessStatus.ready),
+          ),
+        ],
+        child: const MyApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
 
     expect(find.text('EcoCommute'), findsOneWidget);
     expect(find.byType(AlertDialog), findsNothing);
@@ -145,74 +203,54 @@ void main() {
             email: 'demo@example.com',
             visualState: 'normal',
           ),
-        ),
-        locationService: FakeLocationService(
-          status: LocationAccessStatus.serviceDisabled,
-        ),
-      );
+          currentLocationServiceProvider.overrideWithValue(
+            FakeLocationService(status: LocationAccessStatus.serviceDisabled),
+          ),
+        ],
+        child: const MyApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      expect(find.text('Google Map'), findsOneWidget);
-      expect(find.byType(AlertDialog), findsOneWidget);
-      expect(find.byType(FilledButton), findsWidgets);
-    },
-  );
+    expect(find.text('登入'), findsOneWidget);
+    expect(find.text('開啟定位服務'), findsOneWidget);
+    expect(find.text('開啟設定'), findsOneWidget);
+  });
 
   testWidgets('opens map when an existing session is valid', (
     WidgetTester tester,
   ) async {
-    await _pumpApp(
-      tester,
-      authRepository: FakeAuthRepository(
-        restoredUser: const UserAccount(
-          id: 1,
-          username: 'demo-user',
-          email: 'demo@example.com',
-          visualState: 'normal',
-        ),
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authRepositoryProvider.overrideWithValue(
+            FakeAuthRepository(
+              restoredUser: const UserAccount(
+                id: 1,
+                username: 'demo-user',
+                email: 'demo@example.com',
+                visualState: 'normal',
+              ),
+            ),
+          ),
+          appPreferencesProvider.overrideWithValue(
+            FakeAppPreferences(hasSeenPrompt: true),
+          ),
+          currentLocationServiceProvider.overrideWithValue(
+            FakeLocationService(status: LocationAccessStatus.ready),
+          ),
+          currentPositionProvider.overrideWith(
+            (ref) => Stream.value(_fakePosition()),
+          ),
+        ],
+        child: const MyApp(),
       ),
     );
+    await tester.pumpAndSettle();
 
-    expect(find.text('EcoCommute'), findsNothing);
+    expect(find.text('登入'), findsNothing);
     expect(find.text('Google Map'), findsOneWidget);
   });
-
-  testWidgets('returns to login when session restore fails', (
-    WidgetTester tester,
-  ) async {
-    await _pumpApp(tester, authRepository: FakeAuthRepository());
-
-    expect(find.text('EcoCommute'), findsOneWidget);
-    expect(find.text('Google Map'), findsNothing);
-  });
-}
-
-Future<void> _pumpApp(
-  WidgetTester tester, {
-  FakeAuthRepository? authRepository,
-  FakeAppPreferences? preferences,
-  FakeLocationService? locationService,
-}) async {
-  await tester.pumpWidget(
-    ProviderScope(
-      overrides: [
-        authRepositoryProvider.overrideWithValue(
-          authRepository ?? FakeAuthRepository(),
-        ),
-        appPreferencesProvider.overrideWithValue(
-          preferences ?? FakeAppPreferences(hasSeenPrompt: true),
-        ),
-        currentLocationServiceProvider.overrideWithValue(
-          locationService ??
-              FakeLocationService(status: LocationAccessStatus.ready),
-        ),
-        currentPositionProvider.overrideWith(
-          (ref) => Stream.value(_fakePosition()),
-        ),
-      ],
-      child: const MyApp(),
-    ),
-  );
-  await tester.pumpAndSettle();
 }
 
 class FakeAuthRepository implements AuthRepository {
@@ -290,6 +328,80 @@ class FakeLocationService extends CurrentLocationService {
 
   @override
   Future<bool> openAppSettings() async => true;
+
+  @override
+  Future<Position> getCurrentPosition() async => _fakePosition();
+
+  @override
+  Stream<Position> watchPosition({required int distanceFilter}) {
+    return Stream.value(_fakeSecondPosition());
+  }
+}
+
+class FakeTripRepository implements TripRepository {
+  int startTripCount = 0;
+  final List<FakeGpsPointsUpload> uploadedPoints = [];
+  final List<FakeTripEnd> endedTrips = [];
+
+  @override
+  Future<TripStartResult> startTrip() async {
+    startTripCount += 1;
+    return TripStartResult(
+      tripId: 42,
+      startedAt: DateTime(2026, 6, 8, 12),
+      message: '旅程已成功開始！',
+    );
+  }
+
+  @override
+  Future<void> uploadGpsPoints({
+    required int tripId,
+    required List<GpsPointInput> points,
+  }) async {
+    uploadedPoints.add(FakeGpsPointsUpload(tripId: tripId, points: points));
+  }
+
+  @override
+  Future<TripResult> endTrip({
+    required int tripId,
+    required DateTime endedAt,
+    required String transportType,
+  }) async {
+    endedTrips.add(
+      FakeTripEnd(
+        tripId: tripId,
+        endedAt: endedAt,
+        transportType: transportType,
+      ),
+    );
+    return const TripResult(
+      id: 42,
+      distanceKm: 3.21,
+      durationSeconds: 725,
+      transportType: 'mrt',
+      carbonEmission: 0.016,
+      carbonSaved: 0.456,
+    );
+  }
+}
+
+class FakeGpsPointsUpload {
+  const FakeGpsPointsUpload({required this.tripId, required this.points});
+
+  final int tripId;
+  final List<GpsPointInput> points;
+}
+
+class FakeTripEnd {
+  const FakeTripEnd({
+    required this.tripId,
+    required this.endedAt,
+    required this.transportType,
+  });
+
+  final int tripId;
+  final DateTime endedAt;
+  final String transportType;
 }
 
 Position _fakePosition() {
@@ -297,6 +409,21 @@ Position _fakePosition() {
     latitude: 5.552,
     longitude: 98.556,
     timestamp: DateTime(2026, 5, 29),
+    accuracy: 0,
+    altitude: 0,
+    altitudeAccuracy: 0,
+    heading: 0,
+    headingAccuracy: 0,
+    speed: 0,
+    speedAccuracy: 0,
+  );
+}
+
+Position _fakeSecondPosition() {
+  return Position(
+    latitude: 5.553,
+    longitude: 98.557,
+    timestamp: DateTime(2026, 5, 29, 0, 0, 10),
     accuracy: 0,
     altitude: 0,
     altitudeAccuracy: 0,
