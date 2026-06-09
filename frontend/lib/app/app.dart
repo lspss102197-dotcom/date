@@ -1,9 +1,5 @@
-<<<<<<< Updated upstream
-=======
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
->>>>>>> Stashed changes
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
@@ -29,14 +25,6 @@ class MyApp extends StatelessWidget {
         inputDecorationTheme: const InputDecorationTheme(
           floatingLabelBehavior: FloatingLabelBehavior.auto,
         ),
-        filledButtonTheme: FilledButtonThemeData(
-          style: FilledButton.styleFrom(
-            minimumSize: const Size(96, 40),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-          ),
-        ),
       ),
       builder: (context, child) {
         return ColoredBox(
@@ -44,7 +32,7 @@ class MyApp extends StatelessWidget {
           child: child ?? const SizedBox.shrink(),
         );
       },
-      home: const LocationPermissionPromptHost(child: AuthGate()),
+      home: const AuthGate(),
     );
   }
 }
@@ -73,7 +61,7 @@ class _AuthGateState extends ConsumerState<AuthGate> {
     }
 
     if (_isAuthenticated) {
-      return const MapHomePage();
+      return const LocationPermissionPromptHost(child: MapHomePage());
     }
 
     return LoginScreen(
@@ -88,7 +76,10 @@ class _AuthGateState extends ConsumerState<AuthGate> {
   Future<void> _restoreSession() async {
     UserAccount? user;
     try {
-      user = await ref.read(authRepositoryProvider).restoreSession();
+      user = await ref
+          .read(authRepositoryProvider)
+          .restoreSession()
+          .timeout(const Duration(seconds: 3), onTimeout: () => null);
     } on Object {
       user = null;
     }
@@ -117,9 +108,7 @@ class _MapHomePageState extends ConsumerState<MapHomePage> {
   static const String _defaultTransportType = 'mrt';
 
   GoogleMapController? _mapController;
-<<<<<<< Updated upstream
-=======
-  late final Future<void> _mapInitialization = _initializeGoogleMapsAndroid();
+  final Future<void> _mapInitialization = Future<void>.value();
   Timer? _gpsTimer;
   StreamSubscription<Position>? _gpsSubscription;
   TripStartResult? _activeTrip;
@@ -127,7 +116,6 @@ class _MapHomePageState extends ConsumerState<MapHomePage> {
   bool _isTripStarted = false;
   bool _isStartingTrip = false;
   bool _isEndingTrip = false;
->>>>>>> Stashed changes
 
   @override
   Widget build(BuildContext context) {
@@ -156,38 +144,6 @@ class _MapHomePageState extends ConsumerState<MapHomePage> {
 
     return Scaffold(
       appBar: const _MapAppBar(),
-<<<<<<< Updated upstream
-      body: Stack(
-        children: [
-          GoogleMap(
-            initialCameraPosition: const CameraPosition(
-              target: _taipeiMainStation,
-              zoom: 14,
-            ),
-            markers: {
-              if (currentLatLng != null)
-                Marker(
-                  markerId: const MarkerId('current_location'),
-                  position: currentLatLng,
-                ),
-            },
-            myLocationButtonEnabled: true,
-            myLocationEnabled: currentPosition != null,
-            onMapCreated: (controller) {
-              _mapController = controller;
-
-              if (currentLatLng != null) {
-                controller.animateCamera(CameraUpdate.newLatLng(currentLatLng));
-              }
-            },
-          ),
-          Positioned(
-            top: 12,
-            right: 12,
-            child: _CoordinateBadge(positionState: positionState),
-          ),
-        ],
-=======
       body: FutureBuilder<void>(
         future: _mapInitialization,
         builder: (context, snapshot) {
@@ -221,7 +177,6 @@ class _MapHomePageState extends ConsumerState<MapHomePage> {
                 myLocationButtonEnabled: true,
                 myLocationEnabled: currentPosition != null,
                 zoomControlsEnabled: false,
-                zoomGesturesEnabled: false,
                 onMapCreated: (controller) {
                   _mapController = controller;
 
@@ -247,46 +202,18 @@ class _MapHomePageState extends ConsumerState<MapHomePage> {
                 right: 12,
                 child: _CoordinateBadge(positionState: positionState),
               ),
-              _OverviewSheet(),
               Positioned(
-                left: 24,
-                bottom: 126,
-                child: SafeArea(
-                  minimum: const EdgeInsets.only(left: 4, bottom: 4),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _HomeCircleButton(
-                        icon: Icons.history,
-                        tooltip: '旅程紀錄',
-                        onPressed: () {},
-                      ),
-                      const SizedBox(height: 14),
-                      _HomeCircleButton(
-                        icon: Icons.more_horiz,
-                        tooltip: '更多',
-                        onPressed: () {},
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              Positioned(
-                right: 24,
-                bottom: 126,
-                child: SafeArea(
-                  minimum: const EdgeInsets.only(right: 4, bottom: 4),
-                  child: _TripStartButton(
-                    isStarted: _isTripStarted,
-                    isBusy: _isStartingTrip || _isEndingTrip,
-                    onPressed: _isTripStarted ? _endTrip : _toggleTripStarted,
-                  ),
+                right: 20,
+                bottom: 32,
+                child: _TripStartButton(
+                  isStarted: _isTripStarted,
+                  isBusy: _isStartingTrip || _isEndingTrip,
+                  onPressed: _isTripStarted ? _endTrip : _toggleTripStarted,
                 ),
               ),
             ],
           );
         },
->>>>>>> Stashed changes
       ),
     );
   }
@@ -322,13 +249,11 @@ class _MapHomePageState extends ConsumerState<MapHomePage> {
       });
       await _startTripTracking(trip);
     } on TripException catch (error) {
-      if (!mounted) {
-        return;
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
       }
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.message)));
     } finally {
       if (mounted) {
         setState(() {
@@ -349,11 +274,7 @@ class _MapHomePageState extends ConsumerState<MapHomePage> {
       final currentPosition = await locationService.getCurrentPosition();
       await _uploadTripPosition(trip.tripId, currentPosition);
     } on Object {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('旅程已開始，但目前無法取得 GPS 點')));
-      }
+      _showTrackingError();
     }
 
     _gpsTimer = Timer.periodic(Duration(seconds: config.gpsIntervalSeconds), (
@@ -363,11 +284,7 @@ class _MapHomePageState extends ConsumerState<MapHomePage> {
         final position = await locationService.getCurrentPosition();
         await _uploadTripPosition(trip.tripId, position);
       } on Object {
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('GPS 點上傳失敗，稍後會繼續嘗試')));
-        }
+        _showTrackingError();
       }
     });
 
@@ -377,11 +294,7 @@ class _MapHomePageState extends ConsumerState<MapHomePage> {
           try {
             await _uploadTripPosition(trip.tripId, position);
           } on Object {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('GPS 點上傳失敗，稍後會繼續嘗試')),
-              );
-            }
+            _showTrackingError();
           }
         });
   }
@@ -411,9 +324,6 @@ class _MapHomePageState extends ConsumerState<MapHomePage> {
           );
       _stopTripTracking();
       if (mounted) {
-        setState(() {
-          _isEndingTrip = false;
-        });
         await showDialog<void>(
           context: context,
           builder: (context) => _TripResultDialog(result: result),
@@ -482,6 +392,16 @@ class _MapHomePageState extends ConsumerState<MapHomePage> {
       recordedAt: position.timestamp,
     );
   }
+
+  void _showTrackingError() {
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Unable to upload GPS point.')),
+    );
+  }
 }
 
 class _TripResultDialog extends StatelessWidget {
@@ -492,28 +412,28 @@ class _TripResultDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('本次旅程結果'),
+      title: const Text('Trip summary'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           _TripResultRow(
-            label: '減少碳排',
+            label: 'Carbon saved',
             value: '${result.carbonSaved.toStringAsFixed(3)} kg CO2',
           ),
           _TripResultRow(
-            label: '旅程時間',
+            label: 'Duration',
             value: _formatDuration(result.durationSeconds),
           ),
           _TripResultRow(
-            label: '旅程距離',
+            label: 'Distance',
             value: '${result.distanceKm.toStringAsFixed(3)} km',
           ),
           _TripResultRow(
-            label: '交通工具',
+            label: 'Transport',
             value: _formatTransportType(result.transportType),
           ),
           _TripResultRow(
-            label: '本次碳排',
+            label: 'Emission',
             value: '${result.carbonEmission.toStringAsFixed(3)} kg CO2',
           ),
         ],
@@ -521,7 +441,7 @@ class _TripResultDialog extends StatelessWidget {
       actions: [
         FilledButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('完成'),
+          child: const Text('Done'),
         ),
       ],
     );
@@ -532,19 +452,19 @@ class _TripResultDialog extends StatelessWidget {
     final minutes = duration.inMinutes;
     final remainingSeconds = duration.inSeconds.remainder(60);
     if (minutes == 0) {
-      return '$remainingSeconds 秒';
+      return '$remainingSeconds sec';
     }
-    return '$minutes 分 $remainingSeconds 秒';
+    return '$minutes min $remainingSeconds sec';
   }
 
   String _formatTransportType(String? transportType) {
     return switch (transportType) {
-      'mrt' => '捷運',
-      'bus' => '公車',
-      'walk' => '步行',
-      'bike' => '自行車',
-      'motorcycle' => '機車',
-      null || '' => '未指定',
+      'mrt' => 'MRT',
+      'bus' => 'Bus',
+      'walk' => 'Walk',
+      'bike' => 'Bike',
+      'motorcycle' => 'Motorcycle',
+      null || '' => 'Unknown',
       _ => transportType,
     };
   }
@@ -563,111 +483,17 @@ class _TripResultRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: Color(0xFF5F6F6B),
-              fontWeight: FontWeight.w700,
-            ),
-          ),
+          Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(width: 24),
           Flexible(
             child: Text(
               value,
               textAlign: TextAlign.right,
-              style: const TextStyle(
-                color: Color(0xFF10201D),
-                fontWeight: FontWeight.w800,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.w800),
             ),
           ),
         ],
       ),
-    );
-  }
-}
-
-class _HomeCircleButton extends StatelessWidget {
-  const _HomeCircleButton({
-    required this.icon,
-    required this.tooltip,
-    required this.onPressed,
-  });
-
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: Material(
-        color: const Color(0xEEF7FAF9),
-        shape: const CircleBorder(),
-        elevation: 6,
-        shadowColor: const Color(0x33000000),
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: onPressed,
-          child: SizedBox.square(
-            dimension: 72,
-            child: Icon(icon, color: const Color(0xFF24312F), size: 34),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _OverviewSheet extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
-      initialChildSize: 0.11,
-      minChildSize: 0.08,
-      maxChildSize: 0.86,
-      snap: true,
-      snapSizes: const [0.11, 0.86],
-      builder: (context, scrollController) {
-        return DecoratedBox(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            boxShadow: [
-              BoxShadow(
-                blurRadius: 18,
-                color: Color(0x26000000),
-                offset: Offset(0, -6),
-              ),
-            ],
-          ),
-          child: ListView(
-            controller: scrollController,
-            padding: EdgeInsets.zero,
-            children: const [
-              SizedBox(height: 14),
-              Center(child: _OverviewSheetHandle()),
-              SizedBox(height: 48),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _OverviewSheetHandle extends StatelessWidget {
-  const _OverviewSheetHandle();
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xFFE0E0E0),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: const SizedBox(width: 72, height: 7),
     );
   }
 }
@@ -682,13 +508,13 @@ class _LocationAccessBadge extends StatelessWidget {
     final config = statusState.when(
       data: _LocationAccessBadgeConfig.forStatus,
       error: (error, stackTrace) => const _LocationAccessBadgeConfig(
-        label: '權限狀態異常',
+        label: 'Location error',
         icon: Icons.error_outline,
         foreground: Color(0xFF842029),
         background: Color(0xFFFFF1F0),
       ),
       loading: () => const _LocationAccessBadgeConfig(
-        label: '檢查權限中',
+        label: 'Checking location',
         icon: Icons.location_searching,
         foreground: Color(0xFF43515A),
         background: Color(0xFFF3F7F6),
@@ -746,25 +572,25 @@ class _LocationAccessBadgeConfig {
   factory _LocationAccessBadgeConfig.forStatus(LocationAccessStatus status) {
     return switch (status) {
       LocationAccessStatus.ready => const _LocationAccessBadgeConfig(
-        label: '權限已開啟',
+        label: 'Location ready',
         icon: Icons.check_circle_outline,
         foreground: Color(0xFF0F6B5C),
         background: Color(0xFFE8F7F1),
       ),
       LocationAccessStatus.serviceDisabled => const _LocationAccessBadgeConfig(
-        label: '定位服務未開啟',
+        label: 'Location off',
         icon: Icons.location_off_outlined,
         foreground: Color(0xFF875515),
         background: Color(0xFFFFF4DE),
       ),
       LocationAccessStatus.denied => const _LocationAccessBadgeConfig(
-        label: '等待定位權限',
+        label: 'Permission denied',
         icon: Icons.location_disabled_outlined,
         foreground: Color(0xFF875515),
         background: Color(0xFFFFF4DE),
       ),
       LocationAccessStatus.deniedForever => const _LocationAccessBadgeConfig(
-        label: '定位權限已關閉',
+        label: 'Permission blocked',
         icon: Icons.error_outline,
         foreground: Color(0xFF842029),
         background: Color(0xFFFFF1F0),
@@ -786,55 +612,35 @@ class _TripStartButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final backgroundColor = isStarted
-        ? const Color(0xFF0F5F53)
-        : const Color(0xFF007967);
-
     return Semantics(
       button: true,
       toggled: isStarted,
-      label: isStarted ? '結束旅程' : '開始旅程',
-      child: Tooltip(
-        message: isStarted ? '結束旅程' : '開始旅程',
-        child: Material(
-          color: backgroundColor,
-          shape: const CircleBorder(),
-          elevation: 8,
-          shadowColor: const Color(0x66000000),
-          child: InkWell(
-            key: const ValueKey('trip-action-button'),
-            customBorder: const CircleBorder(),
-            onTap: isBusy ? null : onPressed,
-            child: SizedBox.square(
-              dimension: 80,
-              child: Center(
-                child: Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.72),
-                      width: 2,
+      label: isStarted ? 'End trip' : 'Start trip',
+      child: Material(
+        color: isStarted ? const Color(0xFF0F5F53) : const Color(0xFF007967),
+        shape: const CircleBorder(),
+        elevation: 8,
+        shadowColor: const Color(0x66000000),
+        child: InkWell(
+          key: const ValueKey('trip-action-button'),
+          customBorder: const CircleBorder(),
+          onTap: isBusy ? null : onPressed,
+          child: SizedBox.square(
+            dimension: 80,
+            child: Center(
+              child: isBusy
+                  ? const SizedBox.square(
+                      dimension: 28,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 3,
+                      ),
+                    )
+                  : Icon(
+                      isStarted ? Icons.stop_rounded : Icons.directions_walk,
+                      color: Colors.white,
+                      size: 34,
                     ),
-                  ),
-                  child: isBusy
-                      ? const Padding(
-                          padding: EdgeInsets.all(12),
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 3,
-                          ),
-                        )
-                      : Icon(
-                          isStarted
-                              ? Icons.stop_rounded
-                              : Icons.directions_walk,
-                          color: Colors.white,
-                          size: 30,
-                        ),
-                ),
-              ),
             ),
           ),
         ),
@@ -852,8 +658,8 @@ class _CoordinateBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final text = positionState.when(
       data: (position) => _formatCoordinate(position),
-      error: (error, stackTrace) => '定位未啟用',
-      loading: () => '定位中...',
+      error: (error, stackTrace) => 'Location unavailable',
+      loading: () => 'Loading location...',
     );
 
     return DecoratedBox(

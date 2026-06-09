@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'auth_repository.dart';
 import 'auth_page_shell.dart';
+import 'auth_repository.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -26,20 +26,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return AuthPageShell(
-      title: '登入',
-      subtitle: '使用您的 Carbon Trip 帳戶繼續',
-      primaryAction: '下一步',
-      secondaryAction: '建立帳戶',
+      title: 'EcoCommute',
+      subtitle: 'Sign in to continue tracking low-carbon trips.',
+      primaryAction: 'Sign in',
+      secondaryAction: 'Create account',
       isSubmitting: _isSubmitting,
       onPrimaryAction: _submit,
-      onSecondaryAction: () {
-        Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) =>
-                RegisterScreen(onAuthenticated: widget.onAuthenticated),
-          ),
-        );
-      },
+      onSecondaryAction: _openRegister,
       form: Form(
         key: _formKey,
         child: Column(
@@ -49,7 +42,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               controller: _usernameController,
               autofillHints: const [AutofillHints.username],
               decoration: const InputDecoration(
-                labelText: '使用者名稱',
+                labelText: 'Username',
                 border: OutlineInputBorder(),
               ),
               textInputAction: TextInputAction.next,
@@ -60,10 +53,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               controller: _passwordController,
               autofillHints: const [AutofillHints.password],
               decoration: InputDecoration(
-                labelText: '密碼',
+                labelText: 'Password',
                 border: const OutlineInputBorder(),
                 suffixIcon: IconButton(
-                  tooltip: _obscurePassword ? '顯示密碼' : '隱藏密碼',
+                  tooltip: _obscurePassword ? 'Show password' : 'Hide password',
                   icon: Icon(
                     _obscurePassword
                         ? Icons.visibility_outlined
@@ -81,58 +74,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               validator: validatePassword,
               onFieldSubmitted: (_) => _submit(),
             ),
-            const SizedBox(height: 12),
-            Align(
-<<<<<<< Updated upstream
-              alignment: Alignment.centerLeft,
-              child: TextButton(onPressed: () {}, child: const Text('忘記密碼？')),
-=======
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: () {},
-                style: TextButton.styleFrom(
-                  foregroundColor: ecoPrimary,
-                  textStyle: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                child: const Text('忘記密碼？'),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              alignment: WrapAlignment.center,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: 4,
-              children: [
-                const Text(
-                  '還沒有註冊帳號嗎？',
-                  style: TextStyle(
-                    color: Color(0xFF263A37),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                TextButton(
-                  onPressed: _isSubmitting ? null : _openRegister,
-                  style: TextButton.styleFrom(
-                    foregroundColor: ecoPrimary,
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    minimumSize: const Size(0, 36),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    textStyle: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  child: const Text('點我註冊'),
-                ),
-              ],
->>>>>>> Stashed changes
-            ),
             if (_errorMessage != null) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: 14),
               Text(
                 _errorMessage!,
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
@@ -140,6 +83,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  void _openRegister() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => RegisterScreen(onAuthenticated: widget.onAuthenticated),
       ),
     );
   }

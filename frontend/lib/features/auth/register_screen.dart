@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'auth_repository.dart';
 import 'auth_page_shell.dart';
+import 'auth_repository.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({required this.onAuthenticated, super.key});
@@ -28,10 +28,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return AuthPageShell(
-      title: '建立帳戶',
-      subtitle: '開始記錄旅程與碳排成果',
-      primaryAction: '下一步',
-      secondaryAction: '登入',
+      title: 'Create account',
+      subtitle: 'Start recording sustainable trips.',
+      primaryAction: 'Register',
+      secondaryAction: 'Back to sign in',
       isSubmitting: _isSubmitting,
       onPrimaryAction: _submit,
       onSecondaryAction: () => Navigator.of(context).pop(),
@@ -44,7 +44,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               controller: _usernameController,
               autofillHints: const [AutofillHints.username],
               decoration: const InputDecoration(
-                labelText: '使用者名稱',
+                labelText: 'Username',
                 border: OutlineInputBorder(),
               ),
               textInputAction: TextInputAction.next,
@@ -55,7 +55,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               controller: _emailController,
               autofillHints: const [AutofillHints.email],
               decoration: const InputDecoration(
-                labelText: '電子郵件',
+                labelText: 'Email',
                 border: OutlineInputBorder(),
               ),
               keyboardType: TextInputType.emailAddress,
@@ -67,10 +67,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               controller: _passwordController,
               autofillHints: const [AutofillHints.newPassword],
               decoration: InputDecoration(
-                labelText: '密碼',
+                labelText: 'Password',
                 border: const OutlineInputBorder(),
                 suffixIcon: IconButton(
-                  tooltip: _obscurePassword ? '顯示密碼' : '隱藏密碼',
+                  tooltip: _obscurePassword ? 'Show password' : 'Hide password',
                   icon: Icon(
                     _obscurePassword
                         ? Icons.visibility_outlined
@@ -92,10 +92,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               controller: _confirmPasswordController,
               autofillHints: const [AutofillHints.newPassword],
               decoration: InputDecoration(
-                labelText: '確認密碼',
+                labelText: 'Confirm password',
                 border: const OutlineInputBorder(),
                 suffixIcon: IconButton(
-                  tooltip: _obscureConfirmPassword ? '顯示密碼' : '隱藏密碼',
+                  tooltip: _obscureConfirmPassword
+                      ? 'Show password'
+                      : 'Hide password',
                   icon: Icon(
                     _obscureConfirmPassword
                         ? Icons.visibility_outlined
@@ -127,13 +129,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   }
 
   String? _validateConfirmPassword(String? value) {
-    final requiredError = validateRequired(value, '確認密碼');
+    final requiredError = validateRequired(value, 'confirm password');
     if (requiredError != null) {
       return requiredError;
     }
 
     if (value != _passwordController.text) {
-      return '兩次輸入的密碼不一致';
+      return 'Passwords do not match';
     }
 
     return null;
