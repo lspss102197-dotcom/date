@@ -34,17 +34,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-<<<<<<< Updated upstream
-    expect(find.text('登入'), findsOneWidget);
-    expect(find.text('使用者名稱'), findsOneWidget);
-    expect(find.text('密碼'), findsOneWidget);
-=======
     expect(find.text('EcoCommute'), findsOneWidget);
     expect(find.text('請輸入帳號'), findsOneWidget);
     expect(find.text('請輸入密碼'), findsOneWidget);
     expect(find.byType(SingleChildScrollView), findsOneWidget);
     expect(find.byType(FittedBox), findsNothing);
->>>>>>> Stashed changes
     expect(find.text('Google Map'), findsNothing);
 
     await tester.enterText(

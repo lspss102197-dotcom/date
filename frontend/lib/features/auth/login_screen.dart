@@ -61,10 +61,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
             const SizedBox(height: 6),
             Align(
-<<<<<<< Updated upstream
-              alignment: Alignment.centerLeft,
-              child: TextButton(onPressed: () {}, child: const Text('忘記密碼？')),
-=======
               alignment: Alignment.centerRight,
               child: TextButton(
                 onPressed: () {},
@@ -107,7 +103,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   child: const Text('點我註冊'),
                 ),
               ],
->>>>>>> Stashed changes
             ),
             if (_errorMessage != null) ...[
               const SizedBox(height: 8),

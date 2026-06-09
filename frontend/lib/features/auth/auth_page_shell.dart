@@ -51,20 +51,6 @@ class AuthPageShell extends StatelessWidget {
           );
 
     return Scaffold(
-<<<<<<< Updated upstream
-      backgroundColor: colorScheme.surface,
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 900),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  border: Border.all(color: colorScheme.outlineVariant),
-                  borderRadius: BorderRadius.circular(8),
-                  color: colorScheme.surface,
-=======
       backgroundColor: const Color(0xFFF8FBFF),
       resizeToAvoidBottomInset: true,
       body: Stack(
@@ -154,7 +140,6 @@ class AuthPageShell extends StatelessWidget {
                       ),
                     );
                   },
->>>>>>> Stashed changes
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(32),

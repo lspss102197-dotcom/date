@@ -1,9 +1,6 @@
-<<<<<<< Updated upstream
-=======
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
->>>>>>> Stashed changes
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
