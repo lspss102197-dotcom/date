@@ -141,48 +141,10 @@ class AuthPageShell extends StatelessWidget {
                     );
                   },
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final wide = constraints.maxWidth >= 680;
-                      final brand = _AuthBrand(
-                        title: title,
-                        subtitle: subtitle,
-                      );
-                      final fields = _AuthActions(
-                        primaryAction: primaryAction,
-                        secondaryAction: secondaryAction,
-                        onPrimaryAction: isSubmitting ? null : onPrimaryAction,
-                        onSecondaryAction: isSubmitting
-                            ? null
-                            : onSecondaryAction,
-                        form: form,
-                        isSubmitting: isSubmitting,
-                      );
-
-                      if (!wide) {
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [brand, const SizedBox(height: 36), fields],
-                        );
-                      }
-
-                      return Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(child: brand),
-                          const SizedBox(width: 56),
-                          Expanded(child: fields),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-              ),
+              ],
             ),
           ),
-        ),
+        ],
       ),
     );
   }

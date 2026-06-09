@@ -119,6 +119,14 @@ class _MapHomePageState extends ConsumerState<MapHomePage> {
   static const String _defaultTransportType = 'mrt';
 
   GoogleMapController? _mapController;
+  late final Future<void> _mapInitialization = _initializeGoogleMapsAndroid();
+  Timer? _gpsTimer;
+  StreamSubscription<Position>? _gpsSubscription;
+  TripStartResult? _activeTrip;
+  final List<LatLng> _tripRoutePoints = [];
+  bool _isTripStarted = false;
+  bool _isStartingTrip = false;
+  bool _isEndingTrip = false;
 
   @override
   Widget build(BuildContext context) {
@@ -147,36 +155,77 @@ class _MapHomePageState extends ConsumerState<MapHomePage> {
 
     return Scaffold(
       appBar: const _MapAppBar(),
-      body: Stack(
-        children: [
-          GoogleMap(
-            initialCameraPosition: const CameraPosition(
-              target: _taipeiMainStation,
-              zoom: 14,
-            ),
-            markers: {
-              if (currentLatLng != null)
-                Marker(
-                  markerId: const MarkerId('current_location'),
-                  position: currentLatLng,
-                ),
-            },
-            myLocationButtonEnabled: true,
-            myLocationEnabled: currentPosition != null,
-            onMapCreated: (controller) {
-              _mapController = controller;
+      body: FutureBuilder<void>(
+        future: _mapInitialization,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-              if (currentLatLng != null) {
-                controller.animateCamera(CameraUpdate.newLatLng(currentLatLng));
-              }
-            },
-          ),
-          Positioned(
-            top: 12,
-            right: 12,
-            child: _CoordinateBadge(positionState: positionState),
-          ),
-        ],
+          return Stack(
+            children: [
+              GoogleMap(
+                initialCameraPosition: const CameraPosition(
+                  target: _taipeiMainStation,
+                  zoom: _overviewZoom,
+                ),
+                markers: {
+                  if (currentLatLng != null)
+                    Marker(
+                      markerId: const MarkerId('current_location'),
+                      position: currentLatLng,
+                    ),
+                },
+                polylines: {
+                  if (_tripRoutePoints.length >= 2)
+                    Polyline(
+                      polylineId: const PolylineId('active_trip_route'),
+                      points: _tripRoutePoints,
+                      color: const Color(0xFF1A73E8),
+                      width: 6,
+                    ),
+                },
+                myLocationButtonEnabled: true,
+                myLocationEnabled: currentPosition != null,
+                zoomControlsEnabled: false,
+                onMapCreated: (controller) {
+                  _mapController = controller;
+
+                  if (currentLatLng != null) {
+                    controller.animateCamera(
+                      CameraUpdate.newCameraPosition(
+                        CameraPosition(
+                          target: currentLatLng,
+                          zoom: _overviewZoom,
+                        ),
+                      ),
+                    );
+                  }
+                },
+              ),
+              Positioned(
+                top: 12,
+                right: 12,
+                child: _CoordinateBadge(positionState: positionState),
+              ),
+              Positioned(
+                top: 12,
+                left: 12,
+                child: _LocationAccessBadge(statusState: locationAccessState),
+              ),
+              _OverviewSheet(),
+              Positioned(
+                right: 20,
+                bottom: 32,
+                child: _TripStartButton(
+                  isStarted: _isTripStarted,
+                  isBusy: _isStartingTrip || _isEndingTrip,
+                  onPressed: _isTripStarted ? _endTrip : _toggleTripStarted,
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -472,39 +521,6 @@ class _TripResultRow extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _HomeCircleButton extends StatelessWidget {
-  const _HomeCircleButton({
-    required this.icon,
-    required this.tooltip,
-    required this.onPressed,
-  });
-
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: Material(
-        color: const Color(0xEEF7FAF9),
-        shape: const CircleBorder(),
-        elevation: 6,
-        shadowColor: const Color(0x33000000),
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: onPressed,
-          child: SizedBox.square(
-            dimension: 72,
-            child: Icon(icon, color: const Color(0xFF24312F), size: 34),
-          ),
-        ),
       ),
     );
   }
