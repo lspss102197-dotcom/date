@@ -39,7 +39,12 @@ class DioAuthRepository implements AuthRepository {
       return null;
     }
 
-    return UserAccount.restored();
+    try {
+      return await me();
+    } on AuthException {
+      await _tokenStorage.clearAccessToken();
+      return null;
+    }
   }
 
   @override
@@ -55,7 +60,7 @@ class DioAuthRepository implements AuthRepository {
       final token = response.data?['access_token'] as String?;
 
       if (token == null || token.isEmpty) {
-        throw const AuthException('登入回應缺少 token');
+        throw const AuthException('登入成功但未取得 token');
       }
 
       await _tokenStorage.saveAccessToken(token);
@@ -159,10 +164,10 @@ class AuthException implements Exception {
     if (error.type == DioExceptionType.connectionTimeout ||
         error.type == DioExceptionType.receiveTimeout ||
         error.type == DioExceptionType.connectionError) {
-      return const AuthException('無法連線到伺服器，請稍後再試');
+      return const AuthException('無法連線，請確認網路或伺服器狀態');
     }
 
-    return const AuthException('帳號服務暫時無法使用');
+    return const AuthException('帳號或密碼錯誤，請重新確認');
   }
 
   @override

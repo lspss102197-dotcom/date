@@ -35,3 +35,17 @@ class GPSPointModel(Base):
 
     # Relationships
     trip = relationship("TripModel", back_populates="points")
+
+class CarbonFactorModel(Base):
+    __tablename__ = "carbon_factors"
+
+    id = Column(Integer, primary_key=True, index=True)
+    transport_type = Column(String, unique=True, index=True, nullable=False)
+    emission_factor = Column(Float, nullable=False)  # kg CO2 / km
+    unit = Column(String, default="kg CO2 / km")
+    source_name = Column(String, nullable=True)
+    source_url = Column(String, nullable=True)
+    source_version = Column(String, nullable=True)
+    effective_from = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
