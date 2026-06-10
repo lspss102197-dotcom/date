@@ -19,18 +19,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
 
+  bool _obscurePassword = true;
   bool _isSubmitting = false;
   String? _errorMessage;
 
   @override
   Widget build(BuildContext context) {
     return AuthPageShell(
-      subtitle: '登入節能減碳APP',
-      primaryAction: '登入',
-      secondaryPrompt: '',
-      secondaryAction: '',
+      title: 'EcoCommute',
+      subtitle: 'Sign in to continue tracking low-carbon trips.',
+      primaryAction: 'Sign in',
+      secondaryAction: 'Create account',
       isSubmitting: _isSubmitting,
-      showBiometric: true,
       onPrimaryAction: _submit,
       onSecondaryAction: _openRegister,
       form: Form(
@@ -38,74 +38,44 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            AuthTextField(
-              label: '帳號',
-              hint: '請輸入帳號',
-              icon: Icons.person_outline,
+            TextFormField(
               controller: _usernameController,
               autofillHints: const [AutofillHints.username],
+              decoration: const InputDecoration(
+                labelText: 'Username',
+                border: OutlineInputBorder(),
+              ),
               textInputAction: TextInputAction.next,
               validator: validateUsername,
             ),
-            const SizedBox(height: 16),
-            AuthTextField(
-              label: '密碼',
-              hint: '請輸入密碼',
-              icon: Icons.lock_outline,
+            const SizedBox(height: 18),
+            TextFormField(
               controller: _passwordController,
               autofillHints: const [AutofillHints.password],
-              obscureText: true,
+              decoration: InputDecoration(
+                labelText: 'Password',
+                border: const OutlineInputBorder(),
+                suffixIcon: IconButton(
+                  tooltip: _obscurePassword ? 'Show password' : 'Hide password',
+                  icon: Icon(
+                    _obscurePassword
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _obscurePassword = !_obscurePassword;
+                    });
+                  },
+                ),
+              ),
+              obscureText: _obscurePassword,
               textInputAction: TextInputAction.done,
               validator: validatePassword,
               onFieldSubmitted: (_) => _submit(),
             ),
-            const SizedBox(height: 6),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: () {},
-                style: TextButton.styleFrom(
-                  foregroundColor: ecoPrimary,
-                  textStyle: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                child: const Text('忘記密碼？'),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              alignment: WrapAlignment.center,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: 4,
-              children: [
-                const Text(
-                  '還沒有註冊帳號嗎？',
-                  style: TextStyle(
-                    color: Color(0xFF263A37),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                TextButton(
-                  onPressed: _isSubmitting ? null : _openRegister,
-                  style: TextButton.styleFrom(
-                    foregroundColor: ecoPrimary,
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    minimumSize: const Size(0, 36),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    textStyle: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  child: const Text('點我註冊'),
-                ),
-              ],
-            ),
             if (_errorMessage != null) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: 14),
               Text(
                 _errorMessage!,
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
