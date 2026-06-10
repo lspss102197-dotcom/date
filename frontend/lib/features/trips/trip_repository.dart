@@ -10,6 +10,8 @@ final tripRepositoryProvider = Provider<TripRepository>((ref) {
 abstract class TripRepository {
   Future<TripStartResult> startTrip();
 
+  Future<List<TripResult>> listTrips({int limit = 100, int offset = 0});
+
   Future<void> uploadGpsPoints({
     required int tripId,
     required List<GpsPointInput> points,
@@ -41,6 +43,23 @@ class DioTripRepository implements TripRepository {
       }
 
       return TripStartResult.fromJson(data);
+    } on DioException catch (error) {
+      throw TripException.fromDio(error);
+    }
+  }
+
+  @override
+  Future<List<TripResult>> listTrips({int limit = 100, int offset = 0}) async {
+    try {
+      final response = await _apiClient.get<List<dynamic>>(
+        '/api/trips',
+        queryParameters: {'limit': limit, 'offset': offset},
+      );
+
+      return (response.data ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .map(TripResult.fromJson)
+          .toList();
     } on DioException catch (error) {
       throw TripException.fromDio(error);
     }
@@ -142,6 +161,7 @@ class TripResult {
     required this.transportType,
     required this.carbonEmission,
     required this.carbonSaved,
+    this.startedAt,
   });
 
   final int id;
@@ -150,6 +170,7 @@ class TripResult {
   final String? transportType;
   final double carbonEmission;
   final double carbonSaved;
+  final DateTime? startedAt;
 
   factory TripResult.fromJson(Map<String, dynamic> json) {
     return TripResult(
@@ -159,6 +180,7 @@ class TripResult {
       transportType: json['transport_type'] as String?,
       carbonEmission: _doubleFromJson(json['carbon_emission']),
       carbonSaved: _doubleFromJson(json['carbon_saved']),
+      startedAt: _dateTimeFromJson(json['started_at']),
     );
   }
 
@@ -170,6 +192,13 @@ class TripResult {
       return value;
     }
     return 0;
+  }
+
+  static DateTime? _dateTimeFromJson(Object? value) {
+    if (value is String && value.isNotEmpty) {
+      return DateTime.tryParse(value);
+    }
+    return null;
   }
 }
 

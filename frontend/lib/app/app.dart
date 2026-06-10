@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -14,6 +14,182 @@ import '../features/auth/login_screen.dart';
 import '../features/permissions/location_permission_prompt_host.dart';
 import '../features/trips/current_location_provider.dart';
 import '../features/trips/trip_repository.dart';
+
+final tripOverviewProvider = FutureProvider.autoDispose<TripOverviewData>((
+  ref,
+) async {
+  final trips = await ref.watch(tripRepositoryProvider).listTrips();
+  return TripOverviewData.fromTrips(trips);
+});
+
+class TripOverviewData {
+  const TripOverviewData({
+    required this.totalCarbonSavedKg,
+    required this.totalDistanceKm,
+    required this.publicTransitCount,
+    required this.completedTripCount,
+    required this.consecutiveLowCarbonDays,
+    required this.weeklyDistances,
+    required this.transportShares,
+  });
+
+  final double totalCarbonSavedKg;
+  final double totalDistanceKm;
+  final int publicTransitCount;
+  final int completedTripCount;
+  final int consecutiveLowCarbonDays;
+  final List<double> weeklyDistances;
+  final List<TransportShare> transportShares;
+
+  int get treeEquivalentCount => (totalCarbonSavedKg / 42).round();
+
+  int get level => (completedTripCount ~/ 10) + 1;
+
+  static TripOverviewData fromTrips(List<TripResult> trips) {
+    final completedTrips = trips
+        .where((trip) => trip.durationSeconds > 0 || trip.distanceKm > 0)
+        .toList();
+    final totalDistanceKm = completedTrips.fold<double>(
+      0,
+      (total, trip) => total + trip.distanceKm,
+    );
+    final totalCarbonSavedKg = completedTrips.fold<double>(
+      0,
+      (total, trip) => total + trip.carbonSaved,
+    );
+    final publicTransitCount = completedTrips
+        .where((trip) => _isPublicTransit(trip.transportType))
+        .length;
+
+    return TripOverviewData(
+      totalCarbonSavedKg: totalCarbonSavedKg,
+      totalDistanceKm: totalDistanceKm,
+      publicTransitCount: publicTransitCount,
+      completedTripCount: completedTrips.length,
+      consecutiveLowCarbonDays: _calculateStreakDays(completedTrips),
+      weeklyDistances: _calculateWeeklyDistances(completedTrips),
+      transportShares: _calculateTransportShares(completedTrips),
+    );
+  }
+
+  static bool _isPublicTransit(String? transportType) {
+    return transportType == 'mrt' ||
+        transportType == 'bus' ||
+        transportType == 'train';
+  }
+
+  static int _calculateStreakDays(List<TripResult> trips) {
+    final dates =
+        trips
+            .map((trip) => trip.startedAt?.toLocal())
+            .whereType<DateTime>()
+            .map((date) => DateTime(date.year, date.month, date.day))
+            .toSet()
+            .toList()
+          ..sort((a, b) => b.compareTo(a));
+
+    if (dates.isEmpty) {
+      return 0;
+    }
+
+    var streak = 1;
+    var expected = dates.first.subtract(const Duration(days: 1));
+    for (final date in dates.skip(1)) {
+      if (date == expected) {
+        streak += 1;
+        expected = expected.subtract(const Duration(days: 1));
+      } else if (date.isBefore(expected)) {
+        break;
+      }
+    }
+
+    return streak;
+  }
+
+  static List<double> _calculateWeeklyDistances(List<TripResult> trips) {
+    final distances = List<double>.filled(6, 0);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final firstDay = today.subtract(const Duration(days: 5));
+
+    for (final trip in trips) {
+      final startedAt = trip.startedAt?.toLocal();
+      if (startedAt == null) {
+        continue;
+      }
+      final tripDay = DateTime(startedAt.year, startedAt.month, startedAt.day);
+      final index = tripDay.difference(firstDay).inDays;
+      if (index >= 0 && index < distances.length) {
+        distances[index] += trip.distanceKm;
+      }
+    }
+
+    return distances;
+  }
+
+  static List<TransportShare> _calculateTransportShares(
+    List<TripResult> trips,
+  ) {
+    final counts = <String, int>{};
+    for (final trip in trips) {
+      final label = TransportShare.labelFor(trip.transportType);
+      counts[label] = (counts[label] ?? 0) + 1;
+    }
+
+    final total = counts.values.fold<int>(0, (sum, count) => sum + count);
+    if (total == 0) {
+      return const [];
+    }
+
+    final colors = <String, Color>{
+      '捷運': const Color(0xFF007967),
+      '公車': const Color(0xFF0B63CE),
+      '火車': const Color(0xFF5E5CE6),
+      '步行': const Color(0xFF20C7B2),
+      '自行車': const Color(0xFFFF9F1C),
+      '機車': const Color(0xFF8A5400),
+      '其他': const Color(0xFF667085),
+    };
+
+    final shares =
+        counts.entries
+            .map(
+              (entry) => TransportShare(
+                label: entry.key,
+                percent: entry.value / total,
+                color: colors[entry.key] ?? colors['其他']!,
+              ),
+            )
+            .toList()
+          ..sort((a, b) => b.percent.compareTo(a.percent));
+
+    return shares.take(3).toList();
+  }
+}
+
+class TransportShare {
+  const TransportShare({
+    required this.label,
+    required this.percent,
+    required this.color,
+  });
+
+  final String label;
+  final double percent;
+  final Color color;
+
+  static String labelFor(String? transportType) {
+    return switch (transportType) {
+      'mrt' => '捷運',
+      'bus' => '公車',
+      'train' => '火車',
+      'walk' => '步行',
+      'bike' => '自行車',
+      'motorcycle' => '機車',
+      _ => '其他',
+    };
+  }
+}
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -187,7 +363,12 @@ class _MapHomePageState extends ConsumerState<MapHomePage> {
                 },
                 myLocationButtonEnabled: true,
                 myLocationEnabled: currentPosition != null,
+                scrollGesturesEnabled: false,
                 zoomControlsEnabled: false,
+                zoomGesturesEnabled: false,
+                rotateGesturesEnabled: false,
+                tiltGesturesEnabled: false,
+                mapToolbarEnabled: false,
                 onMapCreated: (controller) {
                   _mapController = controller;
 
@@ -213,16 +394,42 @@ class _MapHomePageState extends ConsumerState<MapHomePage> {
                 left: 12,
                 child: _LocationAccessBadge(statusState: locationAccessState),
               ),
-              _OverviewSheet(),
               Positioned(
-                right: 20,
-                bottom: 32,
-                child: _TripStartButton(
-                  isStarted: _isTripStarted,
-                  isBusy: _isStartingTrip || _isEndingTrip,
-                  onPressed: _isTripStarted ? _endTrip : _toggleTripStarted,
+                left: 24,
+                bottom: 86,
+                child: SafeArea(
+                  minimum: const EdgeInsets.only(left: 4, bottom: 4),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _HomeCircleButton(
+                        icon: Icons.history,
+                        tooltip: '旅程紀錄',
+                        onPressed: () {},
+                      ),
+                      const SizedBox(height: 14),
+                      _HomeCircleButton(
+                        icon: Icons.more_horiz,
+                        tooltip: '?皜?',
+                        onPressed: () {},
+                      ),
+                    ],
+                  ),
                 ),
               ),
+              Positioned(
+                right: 24,
+                bottom: 86,
+                child: SafeArea(
+                  minimum: const EdgeInsets.only(right: 4, bottom: 4),
+                  child: _TripStartButton(
+                    isStarted: _isTripStarted,
+                    isBusy: _isStartingTrip || _isEndingTrip,
+                    onPressed: _isTripStarted ? _endTrip : _toggleTripStarted,
+                  ),
+                ),
+              ),
+              _OverviewSheet(),
             ],
           );
         },
@@ -349,6 +556,7 @@ class _MapHomePageState extends ConsumerState<MapHomePage> {
             transportType: _defaultTransportType,
           );
       _stopTripTracking();
+      ref.invalidate(tripOverviewProvider);
       if (mounted) {
         setState(() {
           _isEndingTrip = false;
@@ -431,7 +639,7 @@ class _TripResultDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('本次旅程結果'),
+      title: const Text('?蟡暑????荒??'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -526,41 +734,830 @@ class _TripResultRow extends StatelessWidget {
   }
 }
 
-class _OverviewSheet extends StatelessWidget {
+class _HomeCircleButton extends StatelessWidget {
+  const _HomeCircleButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+
   @override
   Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
-      initialChildSize: 0.11,
-      minChildSize: 0.08,
-      maxChildSize: 0.86,
-      snap: true,
-      snapSizes: const [0.11, 0.86],
-      builder: (context, scrollController) {
-        return DecoratedBox(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            boxShadow: [
-              BoxShadow(
-                blurRadius: 18,
-                color: Color(0x26000000),
-                offset: Offset(0, -6),
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: const Color(0xEEF7FAF9),
+        shape: const CircleBorder(),
+        elevation: 6,
+        shadowColor: const Color(0x33000000),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onPressed,
+          child: SizedBox.square(
+            dimension: 72,
+            child: Icon(icon, color: const Color(0xFF24312F), size: 34),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _OverviewSheet extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<_OverviewSheet> createState() => _OverviewSheetState();
+}
+
+class _OverviewSheetState extends ConsumerState<_OverviewSheet> {
+  static const double _collapsedSize = 0.075;
+  static const double _expandedSize = 0.91;
+  static const double _expandThreshold = 0.30;
+
+  final DraggableScrollableController _controller =
+      DraggableScrollableController();
+  bool _isAutoExpanding = false;
+  bool _isExpanded = false;
+  bool _showOverviewContent = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final overviewState = ref.watch(tripOverviewProvider);
+
+    return NotificationListener<DraggableScrollableNotification>(
+      onNotification: (notification) {
+        if (notification.extent <= _collapsedSize + 0.02 &&
+            (_isExpanded || _showOverviewContent)) {
+          setState(() {
+            _isExpanded = false;
+            _showOverviewContent = false;
+          });
+        }
+
+        if (notification.extent > _expandThreshold &&
+            notification.extent < _expandedSize &&
+            !_isExpanded &&
+            !_isAutoExpanding) {
+          _isAutoExpanding = true;
+          setState(() {
+            _isExpanded = true;
+            _showOverviewContent = true;
+          });
+          _controller
+              .animateTo(
+                _expandedSize,
+                duration: const Duration(milliseconds: 260),
+                curve: Curves.easeOutCubic,
+              )
+              .whenComplete(() => _isAutoExpanding = false);
+        }
+
+        return false;
+      },
+      child: DraggableScrollableSheet(
+        controller: _controller,
+        initialChildSize: _collapsedSize,
+        minChildSize: _collapsedSize,
+        maxChildSize: _expandedSize,
+        snap: true,
+        snapSizes: const [_collapsedSize, _expandedSize],
+        builder: (context, scrollController) {
+          return DecoratedBox(
+            decoration: const BoxDecoration(
+              color: Color(0xFFFBFCFF),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              boxShadow: [
+                BoxShadow(
+                  blurRadius: 18,
+                  color: Color(0x26000000),
+                  offset: Offset(0, -6),
+                ),
+              ],
+            ),
+            child: CustomPaint(
+              painter: _showOverviewContent
+                  ? const _OverviewDotPainter()
+                  : null,
+              child: ListView(
+                controller: scrollController,
+                padding: _showOverviewContent
+                    ? const EdgeInsets.fromLTRB(24, 14, 24, 32)
+                    : const EdgeInsets.only(top: 12),
+                children: [
+                  if (!_showOverviewContent)
+                    const Center(child: _OverviewSheetHandle())
+                  else ...[
+                    const Center(child: _OverviewSheetHandle()),
+                    const SizedBox(height: 28),
+                    const _OverviewHeader(),
+                    const SizedBox(height: 28),
+                    _OverviewDashboard(overviewState: overviewState),
+                  ],
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _OverviewDashboard extends StatelessWidget {
+  const _OverviewDashboard({required this.overviewState});
+
+  final AsyncValue<TripOverviewData> overviewState;
+
+  @override
+  Widget build(BuildContext context) {
+    return overviewState.when(
+      loading: () => const _OverviewStatusCard(
+        icon: Icons.sync,
+        title: '載入總覽資料中',
+        message: '正在讀取後端旅程資料',
+      ),
+      error: (error, stackTrace) => const _OverviewStatusCard(
+        icon: Icons.error_outline,
+        title: '總覽資料讀取失敗',
+        message: '請稍後再試',
+      ),
+      data: (overview) => Column(
+        children: [
+          _CarbonSavedCard(overview: overview),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(
+                child: _OverviewSmallCard(
+                  icon: Icons.local_florist_outlined,
+                  iconColor: const Color(0xFF0B6BFF),
+                  title: '環保小菜鳥',
+                  value: 'Lv.${overview.level}',
+                  subtitle: '${overview.completedTripCount} 趟低碳旅程',
+                ),
+              ),
+              const SizedBox(width: 18),
+              Expanded(
+                child: _OverviewSmallCard(
+                  icon: Icons.local_fire_department_outlined,
+                  iconColor: const Color(0xFFFF9F1C),
+                  title: '連續低碳通勤',
+                  value: '${overview.consecutiveLowCarbonDays} 天',
+                  subtitle: '',
+                ),
               ),
             ],
           ),
-          child: ListView(
-            controller: scrollController,
-            padding: EdgeInsets.zero,
-            children: const [
-              SizedBox(height: 14),
-              Center(child: _OverviewSheetHandle()),
-              SizedBox(height: 48),
-            ],
-          ),
-        );
-      },
+          const SizedBox(height: 18),
+          _TravelStatsCard(overview: overview),
+          const SizedBox(height: 18),
+          const _StepsCard(),
+        ],
+      ),
     );
   }
+}
+
+class _OverviewStatusCard extends StatelessWidget {
+  const _OverviewStatusCard({
+    required this.icon,
+    required this.title,
+    required this.message,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return _OverviewCard(
+      child: Column(
+        children: [
+          Icon(icon, color: const Color(0xFF007967), size: 32),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            style: const TextStyle(
+              color: Color(0xFF101828),
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            style: const TextStyle(
+              color: Color(0xFF344054),
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OverviewHeader extends StatelessWidget {
+  const _OverviewHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '總覽',
+          style: TextStyle(
+            color: Color(0xFF101828),
+            fontSize: 32,
+            fontWeight: FontWeight.w900,
+            height: 1,
+          ),
+        ),
+        SizedBox(height: 12),
+        Text(
+          '檢視您的環保成就與通勤數據',
+          style: TextStyle(
+            color: Color(0xFF344054),
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CarbonSavedCard extends StatelessWidget {
+  const _CarbonSavedCard({required this.overview});
+
+  final TripOverviewData overview;
+
+  @override
+  Widget build(BuildContext context) {
+    return _OverviewCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.eco_outlined, color: Color(0xFF007967), size: 28),
+              SizedBox(width: 12),
+              Text(
+                '總減碳量',
+                style: TextStyle(
+                  color: Color(0xFF24312F),
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 26),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                overview.totalCarbonSavedKg.toStringAsFixed(1),
+                style: const TextStyle(
+                  color: Color(0xFF007967),
+                  fontSize: 56,
+                  fontWeight: FontWeight.w900,
+                  height: 0.9,
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Padding(
+                padding: EdgeInsets.only(bottom: 4),
+                child: Text(
+                  'kg',
+                  style: TextStyle(
+                    color: Color(0xFF007967),
+                    fontSize: 26,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 22),
+          _TreeEquivalentBadge(count: overview.treeEquivalentCount),
+        ],
+      ),
+    );
+  }
+}
+
+class _TreeEquivalentBadge extends StatelessWidget {
+  const _TreeEquivalentBadge({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFFE7EEFD),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFFD0D9F2)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        child: Text(
+          '相當於種了 $count 棵樹',
+          style: const TextStyle(
+            color: Color(0xFF344054),
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _OverviewSmallCard extends StatelessWidget {
+  const _OverviewSmallCard({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.value,
+    required this.subtitle,
+  });
+
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String value;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return _OverviewCard(
+      child: Column(
+        children: [
+          DecoratedBox(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: iconColor.withValues(alpha: 0.08),
+              border: Border.all(color: iconColor, width: 2),
+            ),
+            child: SizedBox.square(
+              dimension: 74,
+              child: Icon(icon, color: iconColor, size: 34),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Color(0xFF101828),
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: iconColor,
+              fontSize: 24,
+              fontWeight: FontWeight.w900,
+              height: 1,
+            ),
+          ),
+          if (subtitle.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Color(0xFF344054),
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _TravelStatsCard extends StatelessWidget {
+  const _TravelStatsCard({required this.overview});
+
+  final TripOverviewData overview;
+
+  @override
+  Widget build(BuildContext context) {
+    return _OverviewCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _MetricTitle(icon: Icons.route_outlined, title: '低碳移動總距離'),
+          const SizedBox(height: 22),
+          _MetricValue(
+            value: overview.totalDistanceKm.toStringAsFixed(0),
+            unit: 'km',
+            color: const Color(0xFF0B63CE),
+          ),
+          const SizedBox(height: 28),
+          _WeeklyBarChart(values: overview.weeklyDistances),
+          const SizedBox(height: 32),
+          const _MetricTitle(
+            icon: Icons.directions_transit_filled_outlined,
+            title: '搭乘大眾運輸',
+            color: Color(0xFF8A5400),
+          ),
+          const SizedBox(height: 22),
+          _MetricValue(
+            value: overview.publicTransitCount.toString(),
+            unit: '次',
+            color: const Color(0xFF8A5400),
+          ),
+          const SizedBox(height: 22),
+          _TransportShareBar(shares: overview.transportShares),
+        ],
+      ),
+    );
+  }
+}
+
+class _StepsCard extends StatelessWidget {
+  const _StepsCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return const _OverviewCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _MetricTitle(
+                icon: Icons.directions_walk,
+                title: '隞甇交',
+                color: Color(0xFF20C7B2),
+              ),
+              Spacer(),
+              _GoalBadge(),
+            ],
+          ),
+          SizedBox(height: 22),
+          _MetricValue(value: '0', unit: '步', color: Color(0xFF101828)),
+          SizedBox(height: 22),
+          _ProgressBar(progress: 0),
+          SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              '0%',
+              style: TextStyle(
+                color: Color(0xFF007967),
+                fontSize: 14,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MetricTitle extends StatelessWidget {
+  const _MetricTitle({
+    required this.icon,
+    required this.title,
+    this.color = const Color(0xFF0B63CE),
+  });
+
+  final IconData icon;
+  final String title;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: color, size: 24),
+        const SizedBox(width: 12),
+        Text(
+          title,
+          style: const TextStyle(
+            color: Color(0xFF101828),
+            fontSize: 17,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MetricValue extends StatelessWidget {
+  const _MetricValue({
+    required this.value,
+    required this.unit,
+    required this.color,
+  });
+
+  final String value;
+  final String unit;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            color: color,
+            fontSize: 42,
+            fontWeight: FontWeight.w900,
+            height: 0.95,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 3),
+          child: Text(
+            unit,
+            style: const TextStyle(
+              color: Color(0xFF24312F),
+              fontSize: 19,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _WeeklyBarChart extends StatelessWidget {
+  const _WeeklyBarChart({required this.values});
+
+  final List<double> values;
+
+  static const List<String> _labels = ['一', '二', '三', '四', '五', '六'];
+
+  @override
+  Widget build(BuildContext context) {
+    final maxValue = values.fold<double>(
+      0,
+      (max, value) => value > max ? value : max,
+    );
+    final normalizedValues = values.isEmpty
+        ? List<double>.filled(_labels.length, 0)
+        : values
+              .map((value) => maxValue == 0 ? 0.08 : value / maxValue)
+              .toList();
+
+    return SizedBox(
+      height: 128,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          for (var index = 0; index < _labels.length; index++) ...[
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  FractionallySizedBox(
+                    widthFactor: 0.86,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Color.lerp(
+                          const Color(0xFF9FC0E9),
+                          const Color(0xFF0B63CE),
+                          index / (_labels.length - 1),
+                        ),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(3),
+                        ),
+                      ),
+                      child: SizedBox(height: 94 * normalizedValues[index]),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    _labels[index],
+                    style: const TextStyle(
+                      color: Color(0xFF344054),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (index != _labels.length - 1) const SizedBox(width: 7),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _TransportShareBar extends StatelessWidget {
+  const _TransportShareBar({required this.shares});
+
+  final List<TransportShare> shares;
+
+  @override
+  Widget build(BuildContext context) {
+    final visibleShares = shares.isEmpty
+        ? const [
+            TransportShare(label: '無資料', percent: 1, color: Color(0xFFCBD5E1)),
+          ]
+        : shares;
+
+    return Column(
+      children: [
+        ClipRRect(
+          borderRadius: const BorderRadius.all(Radius.circular(999)),
+          child: Row(
+            children: [
+              for (final share in visibleShares)
+                Expanded(
+                  flex: (share.percent * 100).round().clamp(1, 100),
+                  child: ColoredBox(
+                    color: share.color,
+                    child: const SizedBox(height: 18),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        for (var index = 0; index < visibleShares.length; index++) ...[
+          _TransportLegend(
+            label: visibleShares[index].label,
+            percent: '${(visibleShares[index].percent * 100).round()}%',
+            color: visibleShares[index].color,
+          ),
+          if (index != visibleShares.length - 1) const SizedBox(height: 7),
+        ],
+      ],
+    );
+  }
+}
+
+class _TransportLegend extends StatelessWidget {
+  const _TransportLegend({
+    required this.label,
+    required this.percent,
+    required this.color,
+  });
+
+  final String label;
+  final String percent;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        DecoratedBox(
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          child: const SizedBox.square(dimension: 9),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: const TextStyle(
+            color: Color(0xFF344054),
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const Spacer(),
+        Text(
+          percent,
+          style: const TextStyle(
+            color: Color(0xFF101828),
+            fontSize: 14,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _GoalBadge extends StatelessWidget {
+  const _GoalBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFFE9EEF8),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        child: Text(
+          '???: 10,000',
+          style: TextStyle(
+            color: Color(0xFF344054),
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProgressBar extends StatelessWidget {
+  const _ProgressBar({required this.progress});
+
+  final double progress;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(999),
+      child: SizedBox(
+        height: 14,
+        child: Row(
+          children: [
+            Expanded(
+              flex: (progress * 100).round(),
+              child: const ColoredBox(color: Color(0xFF007967)),
+            ),
+            Expanded(
+              flex: ((1 - progress) * 100).round(),
+              child: const ColoredBox(color: Color(0xFFE5ECF7)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _OverviewCard extends StatelessWidget {
+  const _OverviewCard({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: const [
+          BoxShadow(
+            blurRadius: 18,
+            color: Color(0x12000000),
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Padding(padding: const EdgeInsets.all(26), child: child),
+    );
+  }
+}
+
+class _OverviewDotPainter extends CustomPainter {
+  const _OverviewDotPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFFD8E4FF)
+      ..style = PaintingStyle.fill;
+
+    for (double y = 18; y < size.height; y += 24) {
+      for (double x = 12; x < size.width; x += 24) {
+        canvas.drawCircle(Offset(x, y), 1.1, paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _OverviewSheetHandle extends StatelessWidget {
@@ -699,9 +1696,9 @@ class _TripStartButton extends StatelessWidget {
     return Semantics(
       button: true,
       toggled: isStarted,
-      label: isStarted ? '結束旅程' : '開始旅程',
+      label: isStarted ? '蝯???' : '????',
       child: Tooltip(
-        message: isStarted ? '結束旅程' : '開始旅程',
+        message: isStarted ? '蝯???' : '????',
         child: Material(
           color: backgroundColor,
           shape: const CircleBorder(),
@@ -770,8 +1767,8 @@ class _CoordinateBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final text = positionState.when(
       data: (position) => _formatCoordinate(position),
-      error: (error, stackTrace) => '定位失敗',
-      loading: () => '定位中...',
+      error: (error, stackTrace) => '?堊垢??剜??',
+      loading: () => '?堊垢???..',
     );
 
     return DecoratedBox(

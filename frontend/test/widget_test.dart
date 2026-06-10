@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import 'package:frontend/app/app.dart';
 import 'package:frontend/core/config/app_config.dart';
@@ -82,6 +83,44 @@ void main() {
     expect(find.byType(TextFormField), findsNothing);
   });
 
+  testWidgets('shows overview dashboard inside the draggable sheet', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await _pumpApp(
+      tester,
+      authRepository: FakeAuthRepository(restoredUser: _fakeUser()),
+    );
+
+    final sheet = tester.widget<DraggableScrollableSheet>(
+      find.byType(DraggableScrollableSheet),
+    );
+    expect(sheet.snap, isTrue);
+    expect(sheet.initialChildSize, 0.075);
+    expect(sheet.minChildSize, 0.075);
+    expect(sheet.maxChildSize, 0.91);
+    expect(sheet.snapSizes, [0.075, 0.91]);
+    expect(find.byType(CustomPaint), findsWidgets);
+    expect(find.text('總覽'), findsNothing);
+    expect(find.text('總減碳量'), findsNothing);
+
+    await tester.dragFrom(const Offset(400, 1140), const Offset(0, -500));
+    await tester.pumpAndSettle();
+
+    expect(find.text('總覽'), findsOneWidget);
+    expect(find.text('總減碳量'), findsOneWidget);
+    expect(find.text('12.5'), findsOneWidget);
+    expect(find.text('相當於種了 0 棵樹'), findsOneWidget);
+    expect(find.text('低碳移動總距離'), findsOneWidget);
+    expect(find.text('34'), findsOneWidget);
+    expect(find.text('搭乘大眾運輸'), findsOneWidget);
+    expect(find.text('2'), findsOneWidget);
+  });
+
   testWidgets('starts and ends a trip from the map action button', (
     tester,
   ) async {
@@ -92,6 +131,33 @@ void main() {
       authRepository: FakeAuthRepository(restoredUser: _fakeUser()),
       tripRepository: tripRepository,
     );
+
+    expect(find.byIcon(Icons.history), findsOneWidget);
+    expect(find.byIcon(Icons.more_horiz), findsOneWidget);
+
+    final map = tester.widget<GoogleMap>(find.byType(GoogleMap));
+    expect(map.scrollGesturesEnabled, isFalse);
+    expect(map.zoomGesturesEnabled, isFalse);
+    expect(map.rotateGesturesEnabled, isFalse);
+    expect(map.tiltGesturesEnabled, isFalse);
+
+    final leftControls = tester.widget<Positioned>(
+      find.ancestor(
+        of: find.byIcon(Icons.history),
+        matching: find.byType(Positioned),
+      ),
+    );
+    expect(leftControls.left, 24);
+    expect(leftControls.bottom, 86);
+
+    final tripControl = tester.widget<Positioned>(
+      find.ancestor(
+        of: find.byKey(const ValueKey('trip-action-button')),
+        matching: find.byType(Positioned),
+      ),
+    );
+    expect(tripControl.right, 24);
+    expect(tripControl.bottom, leftControls.bottom);
 
     await tester.tap(find.byKey(const ValueKey('trip-action-button')));
     await tester.pump();
@@ -229,6 +295,7 @@ class FakeLocationService extends CurrentLocationService {
 
 class FakeTripRepository implements TripRepository {
   int startTripCount = 0;
+  int listTripsCount = 0;
   final List<FakeGpsPointsUpload> uploadedPoints = [];
   final List<FakeTripEnd> endedTrips = [];
 
@@ -240,6 +307,31 @@ class FakeTripRepository implements TripRepository {
       startedAt: DateTime(2026, 6, 8, 12),
       message: 'started',
     );
+  }
+
+  @override
+  Future<List<TripResult>> listTrips({int limit = 100, int offset = 0}) async {
+    listTripsCount += 1;
+    return [
+      TripResult(
+        id: 1,
+        distanceKm: 10.2,
+        durationSeconds: 900,
+        transportType: 'mrt',
+        carbonEmission: 0.2,
+        carbonSaved: 4.5,
+        startedAt: DateTime(2026, 6, 9, 8),
+      ),
+      TripResult(
+        id: 2,
+        distanceKm: 24,
+        durationSeconds: 1200,
+        transportType: 'bus',
+        carbonEmission: 0.3,
+        carbonSaved: 8,
+        startedAt: DateTime(2026, 6, 8, 8),
+      ),
+    ];
   }
 
   @override
